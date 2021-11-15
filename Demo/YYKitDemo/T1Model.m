@@ -153,11 +153,11 @@
 
     NSDictionary *featureDics = dic[@"features"];
     if ([featureDics isKindOfClass:[NSDictionary class]]) {
-        [_mediaThumb modelSetWithDictionary:featureDics[@"thumb"]];
-        [_mediaSmall modelSetWithDictionary:featureDics[@"small"]];
-        [_mediaMedium modelSetWithDictionary:featureDics[@"medium"]];
-        [_mediaLarge modelSetWithDictionary:featureDics[@"large"]];
-        [_mediaOrig modelSetWithDictionary:featureDics[@"orig"]];
+        [_mediaThumb setPropertiesWithDictionary:featureDics[@"thumb"]];
+        [_mediaSmall setPropertiesWithDictionary:featureDics[@"small"]];
+        [_mediaMedium setPropertiesWithDictionary:featureDics[@"medium"]];
+        [_mediaLarge setPropertiesWithDictionary:featureDics[@"large"]];
+        [_mediaOrig setPropertiesWithDictionary:featureDics[@"orig"]];
         
         NSString *url;
         url = [_mediaURL stringByAppendingString:@":thumb"];
