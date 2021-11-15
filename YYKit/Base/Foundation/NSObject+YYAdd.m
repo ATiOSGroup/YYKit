@@ -114,9 +114,10 @@ return @(ret); \
         };
             
         case '@': { // id
-            void *ret;
-            [inv getReturnValue:&ret];
-            return (__bridge id)(ret);
+            void *tempRet;
+            [inv getReturnValue:&tempRet];
+            id ret = (__bridge id)tempRet;
+            return ret;
         };
             
         case '#': { // Class
