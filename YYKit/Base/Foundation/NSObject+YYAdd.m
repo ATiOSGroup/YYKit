@@ -395,3 +395,13 @@ else if (size <= 4 * _size_ ) { \
 }
 
 @end
+
+
+@implementation NSObject (Extension)
+
+- (instancetype)then:(void (^)(id _Nonnull))block {
+    block(self);
+    return self;
+}
+
+@end

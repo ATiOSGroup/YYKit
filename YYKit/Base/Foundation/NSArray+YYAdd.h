@@ -193,4 +193,15 @@ NS_ASSUME_NONNULL_BEGIN
 
 @end
 
+@interface NSArray<__covariant ObjectType> (Extension)
+
+- (void)yy_each:(void (^)(ObjectType obj, NSUInteger idx))block;
+
+- (NSArray *)yy_map:(id _Nullable (^)(ObjectType obj, NSUInteger idx))block;
+
+- (ObjectType)yy_match:(BOOL (^)(ObjectType obj))block;
+
+- (NSUInteger)yy_filter:(BOOL (^)(ObjectType obj))block;
+@end
+
 NS_ASSUME_NONNULL_END

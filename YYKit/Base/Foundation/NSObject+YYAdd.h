@@ -299,4 +299,10 @@ NS_ASSUME_NONNULL_BEGIN
 
 @end
 
+@interface NSObject (Extension)
+
+- (instancetype)then:(void (^)(id this))block;
+
+@end
+
 NS_ASSUME_NONNULL_END
