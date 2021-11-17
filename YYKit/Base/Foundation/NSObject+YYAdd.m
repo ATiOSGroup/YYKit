@@ -399,7 +399,7 @@ else if (size <= 4 * _size_ ) { \
 
 @implementation NSObject (Extension)
 
-- (instancetype)then:(void (^)(id _Nonnull))block {
+- (instancetype)yy_then:(void (^)(id _Nonnull))block {
     block(self);
     return self;
 }

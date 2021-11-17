@@ -301,7 +301,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface NSObject (Extension)
 
-- (instancetype)then:(void (^)(id this))block;
+- (instancetype)yy_then:(void (^)(id this))block;
 
 @end
 
