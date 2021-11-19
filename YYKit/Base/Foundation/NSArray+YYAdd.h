@@ -195,13 +195,13 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface NSArray<__covariant ObjectType> (Extension)
 
-- (void)yy_each:(void (^)(ObjectType obj, NSUInteger idx))block;
+- (void)yy_each:(void (^)(ObjectType obj, NSUInteger idx))block NS_SWIFT_UNAVAILABLE("");
 
-- (NSArray *)yy_map:(id _Nullable (^)(ObjectType obj, NSUInteger idx))block;
+- (NSArray *)yy_map:(id _Nullable (^)(ObjectType obj, NSUInteger idx))block NS_SWIFT_UNAVAILABLE("");
 
-- (ObjectType)yy_match:(BOOL (^)(ObjectType obj))block;
+- (ObjectType)yy_match:(BOOL (^)(ObjectType obj))block NS_SWIFT_UNAVAILABLE("");
 
-- (NSUInteger)yy_filter:(BOOL (^)(ObjectType obj))block;
+- (NSUInteger)yy_filter:(BOOL (^)(ObjectType obj))block NS_SWIFT_UNAVAILABLE("");
 @end
 
 NS_ASSUME_NONNULL_END

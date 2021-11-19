@@ -48,39 +48,6 @@ TableName  DBDefaultTableName = @"common";
 
 @end
 @implementation NSData (__DBAdd)
-//- (NSString *)_db_columnString
-//{
-//    if (!self.length) return nil;
-//    NSUInteger length = self.length;
-//    NSMutableString *result = [NSMutableString stringWithCapacity:length * 2];
-//    const unsigned char *byte = self.bytes;
-//    for (int i = 0; i < length; i++, byte++) {
-//        [result appendFormat:@"%02x", *byte];
-//    }
-//    return result;
-//}
-//+ (NSData *)_db_dataWithColumnString:(NSString *)hexStr
-//{
-//    NSUInteger len = hexStr.length;
-//    if (!len) return nil;
-//
-//    unichar *buf = malloc(sizeof(unichar) * len);
-//    if (!buf) return nil;
-//    [hexStr getCharacters:buf range:NSMakeRange(0, len)];
-//
-//    // 2个16进制位为1个字节
-//    NSMutableData *result = [NSMutableData data];
-//    unsigned char bytes;
-//    char str[3] = { '\0', '\0', '\0' };
-//    for (NSUInteger i = 0, l = len / 2; i < l; i++) {
-//        str[0] = buf[i * 2];
-//        str[1] = buf[i * 2 + 1];
-//        bytes = strtol(str, NULL, 16);
-//        [result appendBytes:&bytes length:1];
-//    }
-//    free(buf);
-//    return result;
-//}
 - (NSString *)_db_columnString {
     if (!self.length) return nil;
     return [self base64EncodedStringWithOptions:NSDataBase64Encoding64CharacterLineLength];
@@ -2531,8 +2498,7 @@ void SQLiteCallBackFunction(sqlite3_context *context, int argc, sqlite3_value **
             case SqliteValueTypeFloat: {
                 val = [NSNumber numberWithDouble:sqlite3_value_double(argv[i])];
             } break;
-            default:
-                break;
+            default: break;
         }
         if (val == nil) {
             type = SqliteValueTypeNull;
@@ -2609,7 +2575,7 @@ int SQLiteCallBackCollation(void *pApp, int lLen, const void *lData, int rLen, c
         
         NSArray<NSMutableDictionary *> *rows = [db _dbQuery:sql];
         if (!rows.count) return nil;
-        return  @([rows[0][@"result"] integerValue]);
+        return @([rows[0][@"result"] integerValue]);
     }];
 }
 
@@ -2763,7 +2729,7 @@ int SQLiteCallBackCollation(void *pApp, int lLen, const void *lData, int rLen, c
 }
  
 - (void)dealloc {
-    NSLog(@"%s", __FUNCTION__);
+//    NSLog(@"%s", __FUNCTION__);
     [self _dbClose];
 }
 
@@ -2781,7 +2747,7 @@ static force_inline NSString *YYTmpTableNameFromClass(Class cls) {
 
 
 static force_inline bool dispatch_queue_current_is(dispatch_queue_t queue) {
-    static void * key = &key;
+    static void *key = &key;
     dispatch_queue_set_specific(queue, key, key, NULL);
     void *flag = dispatch_get_specific(key);
     dispatch_queue_set_specific(queue, key, NULL, NULL);
@@ -2864,7 +2830,7 @@ static force_inline NSArray *KeyConstraintOrder() {
 - (ColumnConstraintWorker * _Nonnull (^)(void))unique {
     return [self _addConstraint:Unique];
 }
-- (ColumnConstraintWorker * _Nonnull (^)(id _Nonnull))db_default {
+- (ColumnConstraintWorker * _Nonnull (^)(id _Nonnull))default {
     return ^(id value) {
         self->_types[@(Default)] = value;
         return self;
@@ -3044,7 +3010,7 @@ static force_inline NSArray *KeyConstraintOrder() {
         if ([w containsPrimaryKey]) {
             if (!_db_primaryKey) _db_primaryKey = [name copy];
             else {
-                NSAssert(NO, @"改库不支持联合主键，请检查(%@, %@)字段", _db_primaryKey, name);
+                NSAssert(NO, @"该库不支持联合主键，请检查(%@, %@)字段", _db_primaryKey, name);
             }
         }
         if (!containsPK) {
@@ -3400,8 +3366,7 @@ DBCondition db_day_is(const char *column, int day) {
     return YYTableNameFromClass(self);
 }
 + (NSString *)db_filePath {
-    //    NSString *dir = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject stringByAppendingPathComponent:@"/database/"];
-    NSString *dir = @"/Users/liyang/Desktop/Programe/Exercise/2020/09/database/";
+    NSString *dir = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES)[0] stringByAppendingPathComponent:@"/database/"]; 
     NSString *path = nil;
     if ([self respondsToSelector:@selector(db_filePathWithSuggestDirectory:)]) {
         path = [(id<YYDataBase>)self db_filePathWithSuggestDirectory:dir];
@@ -3875,8 +3840,7 @@ DBCondition db_day_is(const char *column, int day) {
                 }
                 // 如果dbName包含空格，说明不是一个字段名，可能是个sql语句
                 // 如果旧有的表既不包含新的字段名，也不包含代理告诉的旧有的字段名，就忽略
-                if (
-                    ![dbName containsString:@" "] &&
+                if (![dbName containsString:@" "] &&
                     ![dbNames containsObject:name] &&
                     ![dbNames containsObject:dbName]) continue;
                 // update 临时表 set 新字段名称 = (select 旧字段名 from 旧表 where 临时表.主键 = 旧表.主键)

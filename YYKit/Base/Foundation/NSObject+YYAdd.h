@@ -301,7 +301,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface NSObject (Extension)
 
-- (instancetype)yy_then:(void (^)(id this))block;
+- (instancetype)yy_then:(void (^)(id this))block NS_SWIFT_UNAVAILABLE("");
 
 @end
 

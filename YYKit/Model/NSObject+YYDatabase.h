@@ -29,7 +29,7 @@ typedef ColumnName OldColumnName;
 - (ColumnConstraintWorker * (^)(void))autoincrement;
 - (ColumnConstraintWorker * (^)(void))unique;
 // default保留字
-- (ColumnConstraintWorker * (^)(id value))db_default;
+- (ColumnConstraintWorker * (^)(id value))default;
 /// 被参照的键 column 必须有唯一约束或是主键
 - (ColumnConstraintWorker * (^)(TableName tableName, ColumnName column))foreignRef;
 
@@ -252,7 +252,7 @@ FOUNDATION_EXTERN TableName  DBDefaultTableName;
 /// 从数据库中查询主键值为 value 的记录并以模型返回
 + (instancetype)db_modelWithPrimaryValue:(id)value;
 
-/// 空代表查询所有
+/// 空代表查询所有字段
 + (NSArray *)db_selectWithSqlMaker:(nullable void (^)(SqlMaker *maker))maker;
 
 /// 以json字符串的方式返回查询结果(包含插入时间信息)，一般可用于调试
