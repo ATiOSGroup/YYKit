@@ -640,7 +640,7 @@ static inline CGFloat YYImageDegreesToRadians(CGFloat degrees) {
     return degrees * M_PI / 180;
 }
 
-CGColorSpaceRef YYCGColorSpaceGetDeviceRGB() {
+CGColorSpaceRef YYCGColorSpaceGetDeviceRGB(void) {
     static CGColorSpaceRef space;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
@@ -649,7 +649,7 @@ CGColorSpaceRef YYCGColorSpaceGetDeviceRGB() {
     return space;
 }
 
-CGColorSpaceRef YYCGColorSpaceGetDeviceGray() {
+CGColorSpaceRef YYCGColorSpaceGetDeviceGray(void) {
     static CGColorSpaceRef space;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
@@ -1229,7 +1229,7 @@ CFDataRef YYCGImageCreateEncodedData(CGImageRef imageRef, YYImageType type, CGFl
 
 #if YYIMAGE_WEBP_ENABLED
 
-BOOL YYImageWebPAvailable() {
+BOOL YYImageWebPAvailable(void) {
     return YES;
 }
 

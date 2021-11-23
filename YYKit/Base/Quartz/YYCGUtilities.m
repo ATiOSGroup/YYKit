@@ -47,7 +47,7 @@ CGContextRef YYCGContextCreateGrayBitmapContext(CGSize size, CGFloat scale) {
     return context;
 }
 
-CGFloat YYScreenScale() {
+CGFloat YYScreenScale(void) {
     static CGFloat scale;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
@@ -56,7 +56,7 @@ CGFloat YYScreenScale() {
     return scale;
 }
 
-CGSize YYScreenSize() {
+CGSize YYScreenSize(void) {
     static CGSize size;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
