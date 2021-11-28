@@ -2468,7 +2468,6 @@ typedef NS_ENUM(int, SqliteValueType) {
     sqlite3 *_db;
     NSMutableSet *_functions;
     NSMutableSet *_collations;
-    BOOL _synced;
 }
 
 - (instancetype)initWithPath:(NSString *)path {
@@ -2738,7 +2737,11 @@ int SQLiteCallBackCollation(void *pApp, int lLen, const void *lData, int rLen, c
 
 #import "NSString+YYModel.h"
 static force_inline NSString *YYTableNameFromClass(Class cls) {
-    return [NSString stringWithFormat:@"t_%@", NSStringFromClass(cls)];
+    NSString *name = NSStringFromClass(cls);
+    if ([name containsString:@"."]) {
+        name = [name componentsSeparatedByString:@"."].lastObject;
+    }
+    return [NSString stringWithFormat:@"t_%@", name];
 }
 static force_inline NSString *YYTmpTableNameFromClass(Class cls) {
     return [NSString stringWithFormat:@"t_%@_tmp", NSStringFromClass(cls)];
@@ -2830,7 +2833,7 @@ static force_inline NSArray *KeyConstraintOrder() {
 - (ColumnConstraintWorker * _Nonnull (^)(void))unique {
     return [self _addConstraint:Unique];
 }
-- (ColumnConstraintWorker * _Nonnull (^)(id _Nonnull))default {
+- (ColumnConstraintWorker * _Nonnull (^)(id _Nonnull))defaulte {
     return ^(id value) {
         self->_types[@(Default)] = value;
         return self;
@@ -3279,12 +3282,15 @@ static force_inline NSArray<NSNumber *> *SqlKeywordsOrderFromType(SqlStatementTy
     return [[subs componentsJoinedByString:@" "] stringByAppendingString:@";"];
 }
 
-- (void)execArbitrarySQL:(NSString *)format, ... {
+- (void)execSQLWithFormat:(NSString *)format, ... {
     va_list argList;
     va_start(argList, format);
     NSString *param = [[NSString alloc] initWithFormat:format arguments:argList];
     va_end(argList);
     self->_subs[@(SqlKeywordCustome)] = param;
+}
+- (void)execSQL:(NSString *)sqlString {
+    self->_subs[@(SqlKeywordCustome)] = sqlString;
 }
 
 // MARK: Private
@@ -3382,6 +3388,10 @@ DBCondition db_day_is(const char *column, int day) {
         if (!path.pathExtension.length) path = [path stringByAppendingString:@".sqlite"];
     } else {
         path = [dir stringByAppendingFormat:@"%@.sqlite", DBDefaultTableName];
+    }
+    NSFileManager *manager = [NSFileManager defaultManager];
+    if (![[NSFileManager defaultManager] fileExistsAtPath:path]) {
+        [manager createDirectoryAtPath:[path stringByDeletingLastPathComponent] withIntermediateDirectories:YES attributes:nil error:NULL];
     }
     return path;
 }

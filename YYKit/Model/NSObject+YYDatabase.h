@@ -28,10 +28,10 @@ typedef ColumnName OldColumnName;
 /// 只能用在 integer 字段上
 - (ColumnConstraintWorker * (^)(void))autoincrement;
 - (ColumnConstraintWorker * (^)(void))unique;
-// default保留字
-- (ColumnConstraintWorker * (^)(id value))default;
+
+@property (nonatomic, copy, readonly) ColumnConstraintWorker *(^defaulte)(id value);
 /// 被参照的键 column 必须有唯一约束或是主键
-- (ColumnConstraintWorker * (^)(TableName tableName, ColumnName column))foreignRef;
+@property (nonatomic, copy, readonly) ColumnConstraintWorker * (^foreignRef)(TableName tableName, ColumnName column);
 
 /*
  如果是检索有大量重复数据的字段，不适合建立索引，反而会导致检索速度变慢，因为扫描索引节点的速度比全表扫描要慢
@@ -43,8 +43,8 @@ typedef ColumnName OldColumnName;
 @end
 
 @interface ColumnConstraintMaker : NSObject
-
-- (ColumnConstraintWorker * (^)(ColumnName name))column;
+ 
+@property (nonatomic, copy, readonly) ColumnConstraintWorker *(^column)(ColumnName name);
 
 @end
 
@@ -170,7 +170,7 @@ typedef NS_ENUM(NSInteger, SqlStatementType) {
 - (SqlMaker * (^)(NSUInteger location, NSUInteger length))limit;
 
 /// select 语句时要转换的模型，默认和查询的表一样
-- (SqlMaker * (^)(Class modelCls))toModel;
+@property (nonatomic, copy, readonly) SqlMaker * (^toModel)(Class modelCls);
 
 - (SqlMaker * (^)(NSString *clause, ...))join;
 - (SqlMaker * (^)(NSString *clause, ...))leftJoin;
@@ -183,8 +183,9 @@ typedef NS_ENUM(NSInteger, SqlStatementType) {
 - (NSString *)statement;
 
 // NS_FORMAT_FUNCTION(1, 2) 会告诉编译器，索引1处的参数是一个格式化字符串，而实际参数从索引2处开始。
-/// 自定义完整的sql
-- (void)execArbitrarySQL:(NSString *)format, ... NS_FORMAT_FUNCTION(1,2);;
+/// 自定义完整的sql, 可变参数在swift中不支持呀，，，
+- (void)execSQLWithFormat:(NSString *)format, ... NS_FORMAT_FUNCTION(1,2);;
+- (void)execSQL:(NSString *)sqlString;
 
 - (instancetype)init NS_UNAVAILABLE;
 + (instancetype)new NS_UNAVAILABLE;
