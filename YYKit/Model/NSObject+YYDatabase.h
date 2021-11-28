@@ -209,6 +209,7 @@ FOUNDATION_EXTERN ColumnName DBColumnInsertTimestamp;
 FOUNDATION_EXTERN ColumnName DBColumnDefaultPK;
 FOUNDATION_EXTERN TableName  DBDefaultTableName;
 
+FOUNDATION_EXTERN dispatch_queue_t DBQueue(void);
 /*
  数据库设计说明，
  内部会为每个表增加 c_insertTimestamp(插入时间戳) 和 c_insertTime(插入时间) 字段，用以调试
@@ -274,7 +275,7 @@ FOUNDATION_EXTERN TableName  DBDefaultTableName;
                          work:(NSComparisonResult (^)(NSString *lhs, NSString *rhs))work;
 
 + (BOOL)db_execute:(NSString *)sql;
-+ (NSArray<NSDictionary *> *)db_query:(NSString *)sql;
++ (NSArray<NSDictionary<NSString *, id> *> *)db_query:(NSString *)sql;
 
 /// 在当前线程同步执行block，线程安全
 + (void)db_threadSafe:(void(^)(void))block;
@@ -283,7 +284,7 @@ FOUNDATION_EXTERN TableName  DBDefaultTableName;
 /// 在一条子线程异步执行block，主线程执行finish
 + (void)db_work:(nullable id _Nullable (^)(void))work finish:(nullable void(^)(id _Nullable obj))finish; 
 
-/// 检验创建表的语句是否正确
+/// 创表语句, 
 + (NSString *)db_createTableSql;
 
 + (NSString *)db_lastErrorMessage;

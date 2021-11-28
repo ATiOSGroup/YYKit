@@ -3364,6 +3364,10 @@ DBCondition db_day_is(const char *column, int day) {
     return [NSString stringWithFormat:@"strftime('%%d', %s, 'localtime') = '%d'", column, day];
 }
 
+
+dispatch_queue_t DBQueue(void) {
+    return _YYGetGlobalSerialQueue();
+}
 // MARK: - NSObject - YYDataBase
 
 @implementation NSObject (YYDataBase)
@@ -3618,7 +3622,7 @@ DBCondition db_day_is(const char *column, int day) {
     YYDataBase *db = _YYGetGlobalDBFromCache(self);
     return [db _dbExecute:sql];
 }
-+ (NSArray<NSDictionary *> *)db_query:(NSString *)sql {
++ (NSArray<NSDictionary<NSString *, id> *> *)db_query:(NSString *)sql {
     YYDataBase *db = _YYGetGlobalDBFromCache(self);
     return [db _dbQuery:sql];
 }
