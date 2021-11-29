@@ -63,7 +63,6 @@ typedef ColumnName OldColumnName;
 
 /// 一般可以返回userID，具有相同的identifer的表会在同一个数据库文件中
 /// 没实现此方法的表都会存在 common.sqlite 文件中
-+ (NSString *)db_identifier;
 + (NSString *)db_filePathWithSuggestDirectory:(NSString *)directory;
 
 /// 默认从0.0.1开始，想要升级数据库，要递增此返回值
@@ -146,7 +145,19 @@ typedef NS_ENUM(NSInteger, SqlStatementType) {
  这样就可以查出数据来，注意格式
  
  
- sqlite3中的类型转换  CAST(column as int) 
+ sqlite3中的类型转换  CAST(column as int)
+ 
+ SELECT DATE(1638158275, 'unixepoch', 'localtime', 'start of year')
+ 2021-01-01
+ 
+ select datetime(1638158275, 'unixepoch', 'localtime', strftime('-%w day','now'))
+ 2021-11-28 11:57:55
+ 
+ select datetime(1638158275, 'unixepoch', 'localtime', strftime('-%w day','now'), 'start of day')
+ 2021-11-28 00:00:00
+ 
+ select date(1638158275, 'unixepoch', 'localtime', 'start of month')
+ 2021-11-01
  */
 
 @class SqlMaker;
@@ -196,6 +207,7 @@ typedef NS_ENUM(NSInteger, SqlStatementType) {
 
 /// 执行sqlite函数，sqlite有些日期时间处理函数还是很好用的
 FOUNDATION_EXTERN id db_exec(NSString *format, ...);
+FOUNDATION_EXTERN id db_func(NSString *func);
 
 /// 一下方法可以用在 where 语句中，快速判断日期
 typedef NSString *const DBCondition;
@@ -214,13 +226,14 @@ FOUNDATION_EXTERN dispatch_queue_t DBQueue(void);
  数据库设计说明，
  内部会为每个表增加 c_insertTimestamp(插入时间戳) 和 c_insertTime(插入时间) 字段，用以调试
  c_insertTimestamp 和 c_insertTime 作为保留字段，
- 表名为 t_类名
+ 表名默认为 t_类名
  比如Person类，表名为 t_Person
  不支持联合主键，联合主键在升级迁移数据库表会很麻烦，
  */
 @interface NSObject (YYDataBase)
-
+/// 可自定义表名
 + (NSString *)db_tableName;
+/// 数据库路径
 + (NSString *)db_filePath;
 + (NSString *)db_version;
 + (BOOL)db_close;

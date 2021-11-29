@@ -2589,6 +2589,30 @@ int SQLiteCallBackCollation(void *pApp, int lLen, const void *lData, int rLen, c
         [self _addDateTimeFunctionNamed:"hour" format:"H"];
         [self _addDateTimeFunctionNamed:"minute" format:"M"];
         [self _addDateTimeFunctionNamed:"second" format:"S"];
+        
+        [self _makeFunctionNamed:"timestamp"
+                               argument:2
+                                   work:^id (YYDataBase *db, NSArray *params, NSString **error) {
+            NSString *sql = nil;
+            SqliteValueType type0 = [params[0][@"type"] intValue];
+            SqliteValueType type1 = [params[1][@"type"] intValue];
+            if (type0 == SqliteValueTypeText &&
+                type1 == SqliteValueTypeInteger) {
+                NSString *format = params[0][@"value"];
+                id ts = params[1][@"value"];
+
+                NSString *argv = [NSString stringWithFormat:@"datetime(%@, 'unixepoch', 'localtime')", ts];
+                sql = [NSString stringWithFormat:@"select strftime('%@', %@, 'localtime') as result", format, argv];
+            } else {
+                *error = @"param invalid";
+                return nil;
+            }
+            
+            NSArray<NSMutableDictionary *> *rows = [db _dbQuery:sql];
+            if (!rows.count) return nil;
+            return rows[0][@"result"];
+        }];
+        
         return YES;
     }
     else {
@@ -3161,17 +3185,17 @@ static force_inline NSArray<NSNumber *> *SqlKeywordsOrderFromType(SqlStatementTy
     
     switch (type) {
         case DMLUpdate: {
-            _subs[@(SqlKeywordUpdate)] = YYTableNameFromClass(tableCls);
+            _subs[@(SqlKeywordUpdate)] = [tableCls db_tableName];
         } break;
         case DMLDelete: {
-            _subs[@(SqlKeywordDelete)] = YYTableNameFromClass(tableCls);
+            _subs[@(SqlKeywordDelete)] = [tableCls db_tableName];
         } break;
         case DQLSelect: {
             _modelCls = tableCls;
         } break;
         case DQLSelectCount: {
             _subs[@(SqlKeywordSelectCount)] = @"(*)";
-            _subs[@(SqlKeywordFrom)] = YYTableNameFromClass(tableCls);
+            _subs[@(SqlKeywordFrom)] = [tableCls db_tableName];
         } break;
     }
     return self;
@@ -3268,7 +3292,7 @@ static force_inline NSArray<NSNumber *> *SqlKeywordsOrderFromType(SqlStatementTy
             _subs[@(SqlKeywordSelect)] = [_tableCls dbColumns];
         }
         if (![_subs[@(SqlKeywordFrom)] length]) {
-            _subs[@(SqlKeywordFrom)] = YYTableNameFromClass(_tableCls);
+            _subs[@(SqlKeywordFrom)] = [_tableCls db_tableName];
         }
     }
     NSMutableArray *subs = [NSMutableArray arrayWithCapacity:orders.count];
@@ -3340,11 +3364,14 @@ static YYDataBase *_YYGetMemoryDB() {
     return _db;
 }
 id db_exec(NSString *format, ...) {
-    YYDataBase *db = _YYGetMemoryDB();
     va_list argList;
     va_start(argList, format);
     NSString *func = [[NSString alloc] initWithFormat:format arguments:argList];
     va_end(argList);
+    return db_func(func);
+}
+id db_func(NSString *func) {
+    YYDataBase *db = _YYGetMemoryDB();
     NSArray<NSMutableDictionary *> *rows = [db _dbQuery:[NSString stringWithFormat:@"select %@ as result;", func]];
     if (!rows.count) {
         if (_errorLogsEnabled) NSLog(@"%s", sqlite3_errmsg(db->_db));
@@ -3403,7 +3430,7 @@ dispatch_queue_t DBQueue(void) {
 + (NSString *)db_version {
     if (![self _db_initializeIfNecessary]) return nil;
     YYDataBase *db = _YYGetGlobalDBFromCache(self);
-    NSString *tableName = YYTableNameFromClass(self);
+    NSString *tableName = [self db_tableName];
     NSMutableArray *res = [db _dbQuery:[NSString stringWithFormat:@"select version from t_master where name = '%@';", tableName]];
     return res.count ? res[0][@"version"] : nil;
 }
@@ -3486,7 +3513,7 @@ dispatch_queue_t DBQueue(void) {
 }
 + (BOOL)db_updateSeqFromSequenceTable:(NSInteger)value {
     YYDataBase *db = _YYGetGlobalDBFromCache(self);
-    NSString *tableName = YYTableNameFromClass(self);
+    NSString *tableName = [self db_tableName];
     return [db _dbExecute:[NSString stringWithFormat:@"update sqlite_sequence set seq = %zu where name = '%@';", value, tableName]];
 }
 
@@ -3579,7 +3606,7 @@ dispatch_queue_t DBQueue(void) {
 
 + (BOOL)db_dropTable {
     YYDataBase *db = _YYGetGlobalDBFromCache(self);
-    NSString *tableName = YYTableNameFromClass(self);
+    NSString *tableName = [self db_tableName];
     NSMutableArray *sqls = [NSMutableArray arrayWithCapacity:16];
     [sqls addObject:[NSString stringWithFormat:@"drop table if exists %@;", tableName]];
     [sqls addObject:[NSString stringWithFormat:@"delete from t_master where name = '%@';", tableName]];
@@ -3588,7 +3615,7 @@ dispatch_queue_t DBQueue(void) {
 }
 + (BOOL)db_dropIndexTable {
     YYDataBase *db = _YYGetGlobalDBFromCache(self);
-    NSString *tableName = YYTableNameFromClass(self);
+    NSString *tableName = [self db_tableName];
     return [db _dbExecute:[NSString stringWithFormat:@"drop index if exists %@_index;", tableName]];
 }
 
@@ -3633,7 +3660,7 @@ dispatch_queue_t DBQueue(void) {
  
 
 + (NSString *)db_createTableSql {
-    return [self _db_createTableSqlWithTableName:YYTableNameFromClass(self)];
+    return [self _db_createTableSqlWithTableName:[self db_tableName]];
 }
 + (NSString *)db_lastErrorMessage {
     return [NSString stringWithUTF8String:sqlite3_errmsg(_YYGetGlobalDBFromCache(self)->_db)];
@@ -3794,7 +3821,7 @@ dispatch_queue_t DBQueue(void) {
     if (!db) return NO;
     
     _YYModelMeta *meta = [_YYModelMeta metaWithClass:cls];
-    NSString *tableName = YYTableNameFromClass(cls);
+    NSString *tableName = [cls db_tableName];
     
     NSString *primaryKey = meta.db_primaryKey;
     
