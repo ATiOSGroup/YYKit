@@ -2955,8 +2955,7 @@ static force_inline NSArray *KeyConstraintOrder() {
     
     NSMutableArray<NSString *> *uniqueIndices = [NSMutableArray arrayWithCapacity:4];
     NSMutableArray<NSString *> *indices = [NSMutableArray arrayWithCapacity:4];
-    
-    BOOL containsPK = NO;
+     
     ColumnConstraintWorker *w = nil;
     for (_DBColumnMeta *column in columns) {
         NSString *name = column->_name;
@@ -2968,7 +2967,6 @@ static force_inline NSArray *KeyConstraintOrder() {
         
         NSString *cons = [w toConstraintWithColumnName:name type:type];
         if (cons.length) info = [info stringByAppendingFormat:@" %@", cons];
-        [tmp addObject:info];
         
         if ([w containsUniqueIndex]) {
             [uniqueIndices addObject:name];
@@ -2982,20 +2980,25 @@ static force_inline NSArray *KeyConstraintOrder() {
         }
         
         if ([w containsPrimaryKey]) {
-            if (!_db_primaryKey) _db_primaryKey = [name copy];
+            if (!_db_primaryKey) {
+                _db_primaryKey = [name copy];
+                [tmp insertObject:info atIndex:0];
+            }
             else {
                 NSAssert(NO, @"该库不支持联合主键，请检查(%@, %@)字段", _db_primaryKey, name);
             }
-        }
-        if (!containsPK) {
-            containsPK = [w containsPrimaryKey];
-            if (containsPK) _db_primaryKey = name;
+        } else {
+            [tmp addObject:info];
         }
         NSString *foreignKey = [w toForeignKeyConstraint:name];
         if (foreignKey.length) [foreigns addObject:foreignKey];
     }
      
-    if (!_db_primaryKey) _db_primaryKey = DBColumnDefaultPK;
+    if (!_db_primaryKey) {
+        NSString *pk = DBColumnDefaultPK;
+        [tmp insertObject:[NSString stringWithFormat:@"%@ integer primary key autoincrement", pk] atIndex:0];
+        _db_primaryKey = pk;
+    }
     
     [tmp addObject:_DBExtraDebugColumns()];
     if (foreigns.count) [tmp addObjectsFromArray:foreigns];

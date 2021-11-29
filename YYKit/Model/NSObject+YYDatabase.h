@@ -156,13 +156,17 @@ typedef NS_ENUM(NSInteger, SqlStatementType) {
  select datetime(1638158275, 'unixepoch', 'localtime', strftime('-%w day','now'), 'start of day')
  2021-11-28 00:00:00
  
+ 
+ select datetime(1635717253, 'unixepoch', 'localtime', strftime('-%w day',1635717253, 'unixepoch', 'localtime'), 'start of day')
+ 2021-10-31 00:00:00
+ 
  select date(1638158275, 'unixepoch', 'localtime', 'start of month')
  2021-11-01
  
  select strftime('%Y-%m-%d %H:%M:%S', 1638158275, 'unixepoch', 'localtime')
  2021-11-29 11:57:55
  
- select strftime('%Y-%m-%d %H:%M:%S', 1638158275, 'unixepoch', 'localtime')
+ select strftime('%Y-%m-%d %H:%M:%S', 1638158275, 'unixepoch', 'localtime', 'start of day')
  2021-11-29 00:00:00
  
  
