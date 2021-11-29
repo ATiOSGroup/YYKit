@@ -2555,64 +2555,11 @@ int SQLiteCallBackCollation(void *pApp, int lLen, const void *lData, int rLen, c
     return sqlite3_create_collation_v2(_db, name, SQLITE_UTF8, (__bridge void *)(block), &SQLiteCallBackCollation, NULL) == SQLITE_OK;
 }
 
-- (BOOL)_addDateTimeFunctionNamed:(const char *)name format:(const char *)format {
-    return [self _makeFunctionNamed:name
-                           argument:1
-                               work:^id (YYDataBase *db, NSArray *params, NSString **error) {
-        NSString *sql = nil;
-        SqliteValueType type = [params[0][@"type"] intValue];
-        id argv = params[0][@"value"];
-        if (type == SqliteValueTypeInteger) {
-            argv = [NSString stringWithFormat:@"datetime(%@, 'unixepoch', 'localtime')", argv];
-            sql = [NSString stringWithFormat:@"select strftime('%%%s', %@, 'localtime') as result", format, argv];
-        } else if (type == SqliteValueTypeText) {
-            sql = [NSString stringWithFormat:@"select strftime('%%%s', '%@', 'localtime') as result", format, argv];
-        } else {
-            *error = @"param invalid";
-            return nil;
-        }
-        
-        NSArray<NSMutableDictionary *> *rows = [db _dbQuery:sql];
-        if (!rows.count) return nil;
-        return @([rows[0][@"result"] integerValue]);
-    }];
-}
-
 - (BOOL)_dbOpen {
     if (_db) return YES;
     
     int result = sqlite3_open(_dbPath.UTF8String, &_db);
     if (result == SQLITE_OK) {
-        [self _addDateTimeFunctionNamed:"year" format:"Y"];
-        [self _addDateTimeFunctionNamed:"month" format:"m"];
-        [self _addDateTimeFunctionNamed:"day" format:"d"];
-        [self _addDateTimeFunctionNamed:"hour" format:"H"];
-        [self _addDateTimeFunctionNamed:"minute" format:"M"];
-        [self _addDateTimeFunctionNamed:"second" format:"S"];
-        
-        [self _makeFunctionNamed:"timestamp"
-                               argument:2
-                                   work:^id (YYDataBase *db, NSArray *params, NSString **error) {
-            NSString *sql = nil;
-            SqliteValueType type0 = [params[0][@"type"] intValue];
-            SqliteValueType type1 = [params[1][@"type"] intValue];
-            if (type0 == SqliteValueTypeText &&
-                type1 == SqliteValueTypeInteger) {
-                NSString *format = params[0][@"value"];
-                id ts = params[1][@"value"];
-
-                NSString *argv = [NSString stringWithFormat:@"datetime(%@, 'unixepoch', 'localtime')", ts];
-                sql = [NSString stringWithFormat:@"select strftime('%@', %@, 'localtime') as result", format, argv];
-            } else {
-                *error = @"param invalid";
-                return nil;
-            }
-            
-            NSArray<NSMutableDictionary *> *rows = [db _dbQuery:sql];
-            if (!rows.count) return nil;
-            return rows[0][@"result"];
-        }];
-        
         return YES;
     }
     else {
@@ -3627,8 +3574,7 @@ dispatch_queue_t DBQueue(void) {
     return [db _makeFunctionNamed:name argument:-1 work:^id _Nullable(YYDataBase *db, NSArray *params, NSString *__autoreleasing *error) {
         NSString *sql = nil;
         id val = work(params, &sql, error);
-        if (sql.length) {
-
+        if (sql.length) { 
             NSArray<NSMutableDictionary *> *rows = [db _dbQuery:sql];
             if (!rows.count) return nil;
             return rows[0].allValues.firstObject;

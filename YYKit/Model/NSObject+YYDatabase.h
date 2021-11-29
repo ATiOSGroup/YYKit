@@ -158,6 +158,14 @@ typedef NS_ENUM(NSInteger, SqlStatementType) {
  
  select date(1638158275, 'unixepoch', 'localtime', 'start of month')
  2021-11-01
+ 
+ select strftime('%Y-%m-%d %H:%M:%S', 1638158275, 'unixepoch', 'localtime')
+ 2021-11-29 11:57:55
+ 
+ select strftime('%Y-%m-%d %H:%M:%S', 1638158275, 'unixepoch', 'localtime')
+ 2021-11-29 00:00:00
+ 
+ 
  */
 
 @class SqlMaker;
