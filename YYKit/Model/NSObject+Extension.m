@@ -2560,97 +2560,7 @@ int SQLiteCallBackCollation(void *pApp, int lLen, const void *lData, int rLen, c
     
     int result = sqlite3_open(_dbPath.UTF8String, &_db);
     if (result == SQLITE_OK) {
-        [self _makeFunctionNamed:"unixepoch"
-                        argument:-1
-                            work:^id (YYDataBase *db, NSArray *params, NSString **error) {
-            NSInteger n = params.count;
-            if (n < 2) {
-                *error = @"param invalid";
-                return nil;
-            }
-            SqliteValueType type0 = [params[0][@"type"] intValue];
-            SqliteValueType type1 = [params[1][@"type"] intValue];
-            if ((type0 != SqliteValueTypeInteger &&
-                 type0 != SqliteValueTypeFloat) ||
-                type1 != SqliteValueTypeText) {
-                *error = @"param invalid";
-                return nil;
-            }
-            NSString *sql = nil;
-            id ts = params[0][@"value"];
-            NSString *modifier = [params[1][@"value"] lowercaseString];
-            if ([modifier isEqualToString:@"start of day"]) {
-                sql = [NSString stringWithFormat:@"select strftime('%%s', %@, 'unixepoch', 'localtime', 'start of day', 'utc') as result", ts];
-            } else if ([modifier isEqualToString:@"end of day"]) {
-                sql = [NSString stringWithFormat:@"select strftime('%%s', %@, 'unixepoch', 'localtime', 'start of day', '+1 day', '-1 second', 'utc') as result", ts];
-            } else if ([modifier isEqualToString:@"start of month"]) {
-                sql = [NSString stringWithFormat:@"select strftime('%%s', %@, 'unixepoch', 'localtime', 'start of month', 'utc') as result", ts];
-            } else if ([modifier isEqualToString:@"end of month"]) {
-                sql = [NSString stringWithFormat:@"select strftime('%%s', %@, 'unixepoch', 'localtime', 'start of month', '+1 month', '-1 second', 'utc') as result", ts];
-            } else if ([modifier isEqualToString:@"start of year"]) {
-                sql = [NSString stringWithFormat:@"select strftime('%%s', %@, 'unixepoch', 'localtime', 'start of year', 'utc') as result", ts];
-            } else if ([modifier isEqualToString:@"end of year"]) {
-                sql = [NSString stringWithFormat:@"select strftime('%%s', %@, 'unixepoch', 'localtime', 'start of year', '+1 year', '-1 second', 'utc') as result", ts];
-            } else if ([modifier containsString:@"hour"]) {
-                NSArray<NSMutableDictionary *> *rows = [db _dbQuery:[NSString stringWithFormat:@"select strftime('%%H', %@, 'unixepoch', 'localtime') as result", ts]];
-                if (!rows.count) return nil;
-                int hour = [rows[0][@"result"] intValue];
-                
-                int step = 1;
-                if (n > 2) {
-                    SqliteValueType type2 = [params[2][@"type"] intValue];
-                    if (type2 == SqliteValueTypeInteger) {
-                        int val2 = [params[2][@"value"] intValue];
-                        if (val2 <= 0 || val2 > 23) {
-                            *error = @"param invalid";
-                            return nil;
-                        }
-                        step = val2;
-                    }
-                }
-                NSString *delta = @"";
-                if ([modifier isEqualToString:@"start of hour"]) {
-                    hour = hour / step * step;
-                    delta = [NSString stringWithFormat:@"'+%d hour'", hour];
-                } else if ([modifier isEqualToString:@"end of hour"]) {
-                    hour = (hour / step + 1) * step;
-                    delta = [NSString stringWithFormat:@"'+%d hour'", hour];
-                } else {
-                    hour = (hour / step) * step;
-                    delta = [NSString stringWithFormat:@"'+%d hour', '+%d minute'", hour, step * 30];
-                }
-                sql = [NSString stringWithFormat:@"select strftime('%%s', %@, 'unixepoch', 'localtime', 'start of day', %@, 'utc') as result", ts, delta];
-            } else if ([modifier containsString:@"week"]) {
-                NSString *delta = @"";
-                if (n > 2) {
-                    SqliteValueType type2 = [params[2][@"type"] intValue];
-                    if (type2 == SqliteValueTypeInteger) {
-                        int val2 = [params[2][@"value"] intValue];
-                        if (val2 > 0) {
-                            delta = [NSString stringWithFormat:@" '+%d day',", val2];
-                        } else if (val2 < 0) {
-                            delta = [NSString stringWithFormat:@" '-%d day',", abs(val2)];
-                        }
-                    }
-                }
-                if ([modifier isEqualToString:@"start of week"]) {
-                    sql = [NSString stringWithFormat:@"select strftime('%%s', %@, 'unixepoch', 'localtime', strftime('-%%w day', %@, 'unixepoch'), 'start of day',%@ 'utc') as result", ts, ts, delta];
-                } else if ([modifier isEqualToString:@"end of week"]) {
-                    sql = [NSString stringWithFormat:@"select strftime('%%s', %@, 'unixepoch', 'localtime', strftime('-%%w day', %@, 'unixepoch'), 'start of day',%@ '+7 day', '-1 second', 'utc') as result", ts, ts, delta];
-                } else {
-                    *error = @"param invalid";
-                    return nil;
-                }
-            } else {
-                *error = @"param invalid";
-                return nil;
-            }
-            
-            NSArray<NSMutableDictionary *> *rows = [db _dbQuery:sql];
-            if (!rows.count) return nil;
-            return rows[0][@"result"];
-        }];
-
+        [self _addUnixepochFunction];
         return YES;
     }
     else {
@@ -2661,6 +2571,138 @@ int SQLiteCallBackCollation(void *pApp, int lLen, const void *lData, int rLen, c
         return NO;
     }
 }
+- (void)_addUnixepochFunction {
+    [self _makeFunctionNamed:"unixepoch"
+                    argument:-1
+                        work:^id (YYDataBase *db, NSArray *params, NSString **error) {
+        NSInteger n = params.count;
+        if (n < 2) {
+            *error = @"param invalid";
+            return nil;
+        }
+        SqliteValueType type0 = [params[0][@"type"] intValue];
+        SqliteValueType type1 = [params[1][@"type"] intValue];
+        if ((type0 != SqliteValueTypeInteger &&
+             type0 != SqliteValueTypeFloat) ||
+            type1 != SqliteValueTypeText) {
+            *error = @"param invalid";
+            return nil;
+        }
+        NSString *sql = nil;
+        id ts = params[0][@"value"];
+        NSString *modifier = [params[1][@"value"] lowercaseString];
+        
+        if ([modifier isEqualToString:@"start of year"]) {
+            sql = [NSString stringWithFormat:@"select strftime('%%s', %@, 'unixepoch', 'localtime', 'start of year', 'utc') as result", ts];
+        } else if ([modifier isEqualToString:@"end of year"]) {
+            sql = [NSString stringWithFormat:@"select strftime('%%s', %@, 'unixepoch', 'localtime', 'start of year', '+1 year', '-1 second', 'utc') as result", ts];
+        } else if ([modifier isEqualToString:@"start of month"]) {
+            sql = [NSString stringWithFormat:@"select strftime('%%s', %@, 'unixepoch', 'localtime', 'start of month', 'utc') as result", ts];
+        } else if ([modifier isEqualToString:@"end of month"]) {
+            sql = [NSString stringWithFormat:@"select strftime('%%s', %@, 'unixepoch', 'localtime', 'start of month', '+1 month', '-1 second', 'utc') as result", ts];
+        } else if ([modifier isEqualToString:@"start of day"]) {
+            sql = [NSString stringWithFormat:@"select strftime('%%s', %@, 'unixepoch', 'localtime', 'start of day', 'utc') as result", ts];
+        } else if ([modifier isEqualToString:@"end of day"]) {
+            sql = [NSString stringWithFormat:@"select strftime('%%s', %@, 'unixepoch', 'localtime', 'start of day', '+1 day', '-1 second', 'utc') as result", ts];
+        } else if ([modifier containsString:@"week"]) {
+            NSString *delta = @"";
+            if (n > 2) {
+                SqliteValueType type2 = [params[2][@"type"] intValue];
+                if (type2 == SqliteValueTypeInteger) {
+                    int val2 = [params[2][@"value"] intValue];
+                    if (val2 > 0) {
+                        delta = [NSString stringWithFormat:@" '+%d day',", val2];
+                    } else if (val2 < 0) {
+                        delta = [NSString stringWithFormat:@" '-%d day',", abs(val2)];
+                    }
+                }
+            }
+            if ([modifier isEqualToString:@"start of week"]) {
+                sql = [NSString stringWithFormat:@"select strftime('%%s', %@, 'unixepoch', 'localtime', strftime('-%%w day', %@, 'unixepoch'), 'start of day',%@ 'utc') as result", ts, ts, delta];
+            } else if ([modifier isEqualToString:@"end of week"]) {
+                sql = [NSString stringWithFormat:@"select strftime('%%s', %@, 'unixepoch', 'localtime', strftime('-%%w day', %@, 'unixepoch'), 'start of day',%@ '+7 day', '-1 second', 'utc') as result", ts, ts, delta];
+            } else {
+                *error = @"param invalid";
+                return nil;
+            }
+        } else if ([modifier containsString:@"hour"]) {
+            NSArray<NSMutableDictionary *> *rows = [db _dbQuery:[NSString stringWithFormat:@"select strftime('%%H', %@, 'unixepoch', 'localtime') as result", ts]];
+            if (!rows.count) return nil;
+            int hour = [rows[0][@"result"] intValue];
+            
+            int step = 1;
+            if (n > 2) {
+                SqliteValueType type2 = [params[2][@"type"] intValue];
+                if (type2 == SqliteValueTypeInteger) {
+                    int val2 = [params[2][@"value"] intValue];
+                    if (val2 <= 0 || val2 > 23) {
+                        *error = @"param invalid";
+                        return nil;
+                    }
+                    step = val2;
+                }
+            }
+            NSString *delta = @"";
+            if ([modifier isEqualToString:@"start of hour"]) {
+                hour = hour / step * step;
+                delta = [NSString stringWithFormat:@"'+%d hour'", hour];
+            } else if ([modifier isEqualToString:@"end of hour"]) {
+                hour = (hour / step + 1) * step;
+                delta = [NSString stringWithFormat:@"'+%d hour'", hour];
+            } else if ([modifier isEqualToString:@"middle of hour"])  {
+                hour = (hour / step) * step;
+                delta = [NSString stringWithFormat:@"'+%d hour', '+%d minute'", hour, step * 30];
+            } else {
+                *error = @"param invalid";
+                return nil;
+            }
+            sql = [NSString stringWithFormat:@"select strftime('%%s', %@, 'unixepoch', 'localtime', 'start of day', %@, 'utc') as result", ts, delta];
+        } else if ([modifier containsString:@"minute"]) {
+            if (n < 3) {
+                *error = @"param invalid";
+                return nil;
+            }
+            int step = 0;
+            if ([params[2][@"type"] intValue] == SqliteValueTypeInteger) {
+                int val2 = [params[2][@"value"] intValue];
+                if (val2 <= 0) {
+                    *error = @"param invalid";
+                    return nil;
+                }
+                step = val2;
+            } else {
+                *error = @"param invalid";
+                return nil;
+            }
+            
+            NSArray<NSMutableDictionary *> *rows = [db _dbQuery:[NSString stringWithFormat:@"select strftime('%%H:%%M', %@, 'unixepoch', 'localtime') as result", ts]];
+            if (!rows.count) return nil;
+            NSArray *cmps = [rows[0][@"result"] componentsSeparatedByString:@":"];
+            int min = [cmps[0] intValue] * 60 + [cmps[1] intValue];
+            
+            NSString *delta = @"";
+            if ([modifier isEqualToString:@"start of minute"]) {
+                min = min / step * step;
+                delta = [NSString stringWithFormat:@"'+%d minute'", min];
+            } else if ([modifier isEqualToString:@"end of minute"]) {
+                min = (min / step + 1) * step;
+                delta = [NSString stringWithFormat:@"'+%d minute'", min];
+            } else {
+                *error = @"param invalid";
+                return nil;
+            }
+            sql = [NSString stringWithFormat:@"select strftime('%%s', %@, 'unixepoch', 'localtime', 'start of day', %@, 'utc') as result", ts, delta];
+        } else {
+            *error = @"param invalid";
+            return nil;
+        }
+        
+        NSArray<NSMutableDictionary *> *rows = [db _dbQuery:sql];
+        if (!rows.count) return nil;
+        return rows[0][@"result"];
+    }];
+}
+
 - (BOOL)_dbClose {
     if (!_db) return YES;
     

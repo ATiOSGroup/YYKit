@@ -172,12 +172,12 @@ typedef NS_ENUM(NSInteger, SqlStatementType) {
  ----------------------------------------
  create table if not exists t_weight(no integer primary key autoincrement, timestamp integer unique, value real, insertTimestamp text not null default (strftime('%s','now')), insertTime text not null default (datetime('now','localtime')));
  // 按天分组
- select avg(value) as avgValue, strftime('%s', timestamp, 'unixepoch', 'start of day', 'utc') as ts from t_weight group by ts order by ts;
- select avg(value) as avgValue, strftime('%s', timestamp, 'unixepoch', 'start of day', 'utc') as ts from t_weight group by ts having ts >= '1637856000' order by ts;
+ select avg(value) as avgValue, strftime('%s', timestamp, 'unixepoch', 'localtime', 'start of day', 'utc') as ts from t_weight group by ts order by ts;
+ select avg(value) as avgValue, strftime('%s', timestamp, 'unixepoch', 'localtime', 'start of day', 'utc') as ts from t_weight group by ts having ts >= '1637856000' order by ts;
  // 按周分组
- select avg(value) as avgValue, strftime('%s', timestamp, 'unixepoch', strftime('-%w day', timestamp, 'unixepoch', 'utc'), 'start of day', 'utc') as ts from t_weight group by ts order by ts;
+ select avg(value) as avgValue, strftime('%s', timestamp, 'unixepoch', 'localtime', strftime('-%w day', timestamp, 'unixepoch', 'utc'), 'start of day', 'utc') as ts from t_weight group by ts order by ts;
  // 按月分组
- select avg(value) as avgValue, strftime('%s', timestamp, 'unixepoch', 'start of month', 'utc') as ts from t_weight group by ts order by ts;
+ select avg(value) as avgValue, strftime('%s', timestamp, 'unixepoch', 'localtime', 'start of month', 'utc') as ts from t_weight group by ts order by ts;
  */
 
 @class SqlMaker;
