@@ -56,10 +56,19 @@ dispatch_semaphore_signal(_lock);
     _source = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_main_queue());
     dispatch_source_set_timer(_source, dispatch_time(DISPATCH_TIME_NOW, (start * NSEC_PER_SEC)), (interval * NSEC_PER_SEC), 0);
     dispatch_source_set_event_handler(_source, ^{[_self fire];});
-    dispatch_resume(_source);
     return self;
 }
 
+- (void)pasuse {
+    dispatch_semaphore_wait(_lock, DISPATCH_TIME_FOREVER);
+    dispatch_suspend(_source);
+    dispatch_semaphore_signal(_lock);
+}
+- (void)resume {
+    dispatch_semaphore_wait(_lock, DISPATCH_TIME_FOREVER);
+    dispatch_resume(_source);
+    dispatch_semaphore_signal(_lock);
+}
 - (void)invalidate {
     dispatch_semaphore_wait(_lock, DISPATCH_TIME_FOREVER);
     if (_valid) {

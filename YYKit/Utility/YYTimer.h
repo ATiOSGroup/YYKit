@@ -41,7 +41,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (void)invalidate;
 
-- (void)fire;
+- (void)resume;
+- (void)pasuse;
 
 @end
 

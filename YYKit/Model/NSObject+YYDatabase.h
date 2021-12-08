@@ -169,7 +169,15 @@ typedef NS_ENUM(NSInteger, SqlStatementType) {
  select strftime('%Y-%m-%d %H:%M:%S', 1638158275, 'unixepoch', 'localtime', 'start of day')
  2021-11-29 00:00:00
  
- 
+ ----------------------------------------
+ create table if not exists t_weight(no integer primary key autoincrement, timestamp integer unique, value real, insertTimestamp text not null default (strftime('%s','now')), insertTime text not null default (datetime('now','localtime')));
+ // 按天分组
+ select avg(value) as avgValue, strftime('%s', timestamp, 'unixepoch', 'start of day', 'utc') as ts from t_weight group by ts order by ts;
+ select avg(value) as avgValue, strftime('%s', timestamp, 'unixepoch', 'start of day', 'utc') as ts from t_weight group by ts having ts >= '1637856000' order by ts;
+ // 按周分组
+ select avg(value) as avgValue, strftime('%s', timestamp, 'unixepoch', strftime('-%w day', timestamp, 'unixepoch', 'utc'), 'start of day', 'utc') as ts from t_weight group by ts order by ts;
+ // 按月分组
+ select avg(value) as avgValue, strftime('%s', timestamp, 'unixepoch', 'start of month', 'utc') as ts from t_weight group by ts order by ts;
  */
 
 @class SqlMaker;
@@ -217,9 +225,38 @@ typedef NS_ENUM(NSInteger, SqlStatementType) {
 
 @end
 
+/**
+ 内置了 unixepoch(parm1, parm2, parm3) 时间戳处理函数
+ param1为时间戳字段或者 整型或浮点型 数值
+ param2为修饰符，字符串类型，不区分大小写，支持
+ ['start of hour', 'end of hour',
+ 'start of day', 'end of day',
+ 'start of week', 'end of week',
+ 'start of month', 'end of month',
+ 'start of year', 'end of year']
+ 
+ param3参数
+ 当parm2为'start of week'或者'end of week'时，此参数用来指定周首日，不传/0表示周日首日，1表示周一首日，2表示周二首日，-1表示上周五首日，依次类推
+ 当parm2为'start of hour'或者'end of hour'时，此参数用来指定倍数，比如
+ 当前时间09:32
+ 
+         param3:    3      2
+ param2：
+ 'start of hour'    09:00  08:00
+ 'end of hour'      12:00  10:00
+ 
+ 返回的是修饰符对应的unix时间戳字符串
+ 
+ 用于分组查询
+ select avg(value) as avgValue, unixepoch(timestamp, 'start of day') as ts from t_heart_rate group by ts order by ts
+ 
+ select avg(value) as avgValue, unixepoch(timestamp, 'start of week') as ts from t_weight where timestamp >= 1628956800 group by ts having ts >= '1628956800' order by ts;
+ */
 /// 执行sqlite函数，sqlite有些日期时间处理函数还是很好用的
 FOUNDATION_EXTERN id db_exec(NSString *format, ...);
+// "select \(func) as result;"
 FOUNDATION_EXTERN id db_func(NSString *func);
+FOUNDATION_EXTERN NSArray<NSDictionary<NSString *, id> *> *db_query(NSString *sql);
 
 /// 一下方法可以用在 where 语句中，快速判断日期
 typedef NSString *const DBCondition;
