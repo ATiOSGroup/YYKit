@@ -3838,7 +3838,7 @@ dispatch_queue_t DBQueue(void) {
     }] componentsJoinedByString:@", "];
     
     NSString *action = need ? @"insert or replace" : @"insert";
-    return [NSString stringWithFormat:@"%@ into %@(%@) values(%@);", action, tableName, names, values];
+    return [NSString stringWithFormat:@"%@ into %@(%@) values (%@);", action, tableName, names, values];
 }
 - (NSString *)_db_updateSqlWithTableName:(NSString *)tableName
                               primaryKey:(NSString *)primaryKey {
@@ -3919,30 +3919,38 @@ dispatch_queue_t DBQueue(void) {
         NSString *first = [NSString stringWithFormat:@"create table if not exists t_master(name text primary key, columns text, primaryKey text, version text, %@);", _DBExtraDebugColumns()];
         [sqls addObject:first];
     } else {
-        NSArray *result = [db _dbQuery:[NSString stringWithFormat:@"select version, primaryKey from t_master where name = '%@';", tableName]];
+        NSArray *result = [db _dbQuery:[NSString stringWithFormat:@"select version, primaryKey, columns from t_master where name = '%@';", tableName]];
         if (result.count > 0) {
             if (![cls respondsToSelector:@selector(db_NewVersion)]) {
                 if (!block) return YES;
                 return [db _dbExecutes:block(tableName, primaryKey, db, meta)];
             }
-            NSString *newVersion = [(id<YYDataBase>)cls db_NewVersion];
             // 判断是否需要更新表
+            NSString *newVersion = [(id<YYDataBase>)cls db_NewVersion];
             NSString *dbVersion = result[0][@"version"];
             if ([newVersion compareVersion:dbVersion] < 1) {
+                /// 没有增加版本号，无需迁移表
                 if (!block) return YES;
                 return [db _dbExecutes:block(tableName, primaryKey, db, meta)];
             }
+            NSCharacterSet *whiteSet = [NSCharacterSet whitespaceAndNewlineCharacterSet];
+            /// 新表的所有字段
+            NSArray *newColumns = [meta _dbColumnNamesDebuged];
+            NSString *newColumnNames = [newColumns componentsJoinedByString:@","];
             
-            /// 数据迁移
-            NSString *newColumns = [[meta _dbColumnNamesDebuged] componentsJoinedByString:@", "];
-            NSString *dbColumns = [db _dbQuery:[NSString stringWithFormat:@"select columns from t_master where name = '%@';", tableName]][0][@"columns"];
-            if ([newColumns isEqualToString:dbColumns]) {
+            /// 旧表的所有字段
+            NSArray *dbColumns = [[result[0][@"columns"] componentsSeparatedByString:@","] _db_map:^id _Nullable(NSString *obj, NSUInteger idx) {
+                return [obj stringByTrimmingCharactersInSet:whiteSet];
+            }];
+            NSString *dbColumnNames = [dbColumns componentsJoinedByString:@","];
+            
+            if ([newColumnNames isEqualToString:dbColumnNames]) {
+                ///新表的所有字段与旧表的所有字段相同，无需迁移
                 if (!block) return YES;
                 return [db _dbExecutes:block(tableName, primaryKey, db, meta)];
             }
             
             NSString *tmpTableName = YYTmpTableNameFromClass(cls);
-            // 删除临时表
             [sqls addObject:[NSString stringWithFormat:@"drop table if exists %@;", tmpTableName]];
             
             // 创建临时表
@@ -3950,38 +3958,33 @@ dispatch_queue_t DBQueue(void) {
             [sqls addObject:sql];
             
             NSString *dbPK = result[0][@"primaryKey"];
-            // 根据主键插入数据
-            [sqls addObject:[NSString stringWithFormat:@"insert into %@(%@) select %@ from %@;", tmpTableName, primaryKey, dbPK, tableName]];
-            
-            NSArray *newNames = [meta _dbColumnNamesDebuged];
-            NSCharacterSet *set = [NSCharacterSet whitespaceAndNewlineCharacterSet];
-            NSSet<NSString *> *dbNames = [NSSet setWithArray:[[dbColumns componentsSeparatedByString:@","] _db_map:^id _Nullable(NSString *obj, NSUInteger idx) {
-                return [obj stringByTrimmingCharactersInSet:set];
-            }]];
+            // 填充新表的主键数据
+            [sqls addObject:[NSString stringWithFormat:@"insert into %@ (%@) select %@ from %@;", tmpTableName, primaryKey, dbPK, tableName]];
+              
+            NSSet<NSString *> *dbColumnsSet = [NSSet setWithArray:dbColumns];
             NSDictionary<NSString *, NSString *> *nameMapper = nil;
-            if ([cls respondsToSelector:@selector(db_newColumnNameFromOldColumnNamesRepresentWithVersion:)]) {
-                nameMapper = [(id<YYDataBase>)cls db_newColumnNameFromOldColumnNamesRepresentWithVersion:dbVersion];
+            if ([cls respondsToSelector:@selector(db_newColumnNameFromOldColumnNamesVersioned:)]) {
+                nameMapper = [(id<YYDataBase>)cls db_newColumnNameFromOldColumnNamesVersioned:dbVersion];
             }
-            for (NSString *name in newNames) {
-                if ([name isEqualToString:primaryKey]) continue;
-                NSString *dbName = name;
-                if (nameMapper[name].length > 0) {
-                    dbName = nameMapper[name];
+            /// 数据迁移
+            for (NSString *column in newColumns) {
+                if ([column isEqualToString:primaryKey]) continue;
+                NSString *dbColumn = column;
+                if (nameMapper[column].length > 0) {
+                    dbColumn = nameMapper[column];
                 }
-                // 如果dbName包含空格，说明不是一个字段名，可能是个sql语句
-                // 如果旧有的表既不包含新的字段名，也不包含代理告诉的旧有的字段名，就忽略
-                if (![dbName containsString:@" "] &&
-                    ![dbNames containsObject:name] &&
-                    ![dbNames containsObject:dbName]) continue;
+                // 说明是新增加的字段，忽略
+                if (![dbColumnsSet containsObject:dbColumn]) continue;
                 // update 临时表 set 新字段名称 = (select 旧字段名 from 旧表 where 临时表.主键 = 旧表.主键)
-                NSString *subsql = [NSString stringWithFormat:@"update %@ set %@ = (select %@ from %@ where %@.%@ = %@.%@);", tmpTableName, name, dbName, tableName, tmpTableName, primaryKey, tableName, dbPK];
-                [sqls addObject:subsql];
+                NSString *setsql = [NSString stringWithFormat:@"update %@ set %@ = (select %@ from %@ where %@.%@ = %@.%@);", tmpTableName, column, dbColumn, tableName, tmpTableName, primaryKey, tableName, dbPK];
+                [sqls addObject:setsql];
             }
-            
+            /// 删除旧表
             [sqls addObject:[NSString stringWithFormat:@"drop table if exists %@;", tableName]];
+            /// 将临时表改名为旧表的表名，以达到替换的效果
             [sqls addObject:[NSString stringWithFormat:@"alter table %@ rename to %@;", tmpTableName, tableName]];
-            
-            [sqls addObject:[NSString stringWithFormat:@"update t_master set columns = '%@', primaryKey = '%@', version = '%@' where name = '%@';", newColumns, primaryKey, newVersion, tableName]];
+            /// 更新信息
+            [sqls addObject:[NSString stringWithFormat:@"update t_master set columns = '%@', primaryKey = '%@', version = '%@' where name = '%@';", newColumnNames, primaryKey, newVersion, tableName]];
             
             if (!block) return [db _dbExecutes:sqls];
             
@@ -4006,7 +4009,7 @@ dispatch_queue_t DBQueue(void) {
     version = version.length ? version : @"0.0.1";
     
     // 记录此表的信息
-    [sqls addObject:[NSString stringWithFormat:@"insert or replace into t_master (name, columns, primaryKey, version) values('%@', '%@', '%@', '%@');", tableName, [[meta _dbColumnNamesDebuged] componentsJoinedByString:@", "], primaryKey, version]];
+    [sqls addObject:[NSString stringWithFormat:@"insert or replace into t_master (name, columns, primaryKey, version) values('%@', '%@', '%@', '%@');", tableName, [[meta _dbColumnNamesDebuged] componentsJoinedByString:@","], primaryKey, version]];
     
     if (!block) return [db _dbExecutes:sqls];
     if (barrier) {

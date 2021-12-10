@@ -65,10 +65,11 @@ typedef ColumnName OldColumnName;
 /// 没实现此方法的表都会存在 common.sqlite 文件中
 + (NSString *)db_filePathWithSuggestDirectory:(NSString *)directory;
 
-/// 默认从0.0.1开始，想要升级数据库，要递增此返回值
+/// 默认从0.0.1开始，想要升级数据库，需增加版本号
 + (NSString *)db_NewVersion;
-/// 若想更改字段名，并实现此方法并递增版本号, 可通过参数实现跨版本迁移，不同versoin返回不同的结果
-+ (NSDictionary<NewColumnName, NSString *> *)db_newColumnNameFromOldColumnNamesRepresentWithVersion:(NSString *)dbVersion;
+
+/// 若想更改字段名，需实现此方法且增加版本号, 可通过参数实现跨版本迁移，不同versoin返回不同的结果
++ (NSDictionary<NewColumnName, NSString *> *)db_newColumnNameFromOldColumnNamesVersioned:(NSString *)dbVersion;
 @end
 
 /// sql语句类型
