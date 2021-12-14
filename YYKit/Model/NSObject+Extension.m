@@ -2414,429 +2414,7 @@ NSArray *JSONArrayFromFilePath(NSString *path) {
 
 // MARK: - YYDataBase
 
-
-#if __has_include(<sqlite3.h>)
-#import <sqlite3.h>
-#else
-#import "sqlite3.h"
-#endif
-
-#if DEBUG
-static BOOL _errorLogsEnabled = YES;
-#else
-static BOOL _errorLogsEnabled = NO;
-#endif
-
-void DBSetErrorLogEnable(BOOL enable) {
-    _errorLogsEnabled = enable;
-}
-
-
-typedef NS_ENUM(int, SqliteValueType) {
-    SqliteValueTypeInteger = 1,
-    SqliteValueTypeFloat   = 2,
-    SqliteValueTypeText    = 3,
-    SqliteValueTypeBlob    = 4,
-    SqliteValueTypeNull    = 5
-};
-
-@class YYDataBase;
-
-@interface _SqlFuncBox : NSObject
-@end
-@implementation _SqlFuncBox {
-    @package
-    __unsafe_unretained YYDataBase *_db;
-    int _argumentsCount;
-    id _Nullable (^_block)(YYDataBase *db, NSArray *params, NSString **error);
-}
-@end
-
-@interface _SqlCollationBox : NSObject
-@end
-@implementation _SqlCollationBox {
-    @package
-    NSComparisonResult (^_block)(NSString *lhs, NSString *rhs);
-}
-@end
-@interface YYDataBase : NSObject
-@end
-@implementation YYDataBase {
-    @package
-    NSString *_dbPath;
-    sqlite3 *_db;
-    NSMutableSet *_functions;
-    NSMutableSet *_collations;
-}
-
-- (instancetype)initWithPath:(NSString *)path {
-    self = [self init];
-    _dbPath = [path copy];
-    
-    return self;
-}
-void SQLiteCallBackFunction(sqlite3_context *context, int argc, sqlite3_value **argv) {
-    _SqlFuncBox *pApp = (__bridge _SqlFuncBox *)(sqlite3_user_data(context));
-    int count = argc;
-    NSMutableArray *params = [NSMutableArray arrayWithCapacity:count];
-    for (int i = 0; i < count; i++) {
-        id val = nil;
-        SqliteValueType type = sqlite3_value_type(argv[i]);
-        switch (type) {
-            case SqliteValueTypeNull: {
-                
-            } break;
-            case SqliteValueTypeText: {
-                const char *cString = (const char *)sqlite3_value_text(argv[i]);
-                if (cString) val = [NSString stringWithUTF8String:cString];
-            } break;
-            case SqliteValueTypeInteger: {
-                val = [NSNumber numberWithLongLong:sqlite3_value_int64(argv[i])];
-            } break;
-            case SqliteValueTypeFloat: {
-                val = [NSNumber numberWithDouble:sqlite3_value_double(argv[i])];
-            } break;
-            default: break;
-        }
-        if (val == nil) {
-            type = SqliteValueTypeNull;
-            val = [NSNull null];
-        }
-        [params addObject:@{@"type": @(type), @"value": val}];
-    }
-    
-    NSString *error = nil;
-    id res = pApp->_block(pApp->_db, params, &error);
-    if (error) {
-        sqlite3_result_error(context, [error UTF8String], -1);
-        return;
-    } else if (!res || res == [NSNull null]) {
-        sqlite3_result_null(context);
-    } else {
-        if ([res isKindOfClass:[NSNumber class]]) {
-            NSNumber *num = (NSNumber *)res;
-            if (strcmp([num objCType], @encode(float)) == 0 ||
-                strcmp([num objCType], @encode(double)) == 0) {
-                sqlite3_result_double(context, [num doubleValue]);
-            } else {
-                sqlite3_result_int64(context, [num longLongValue]);
-            }
-        } else if ([res isKindOfClass:[NSString class]]) {
-            sqlite3_result_text(context, [res UTF8String], -1, SQLITE_TRANSIENT);
-        }
-    }
-}
-- (BOOL)_makeFunctionNamed:(const char *)name
-                  argument:(int)count
-                      work:(id _Nullable (^)(YYDataBase *db, NSArray *params, NSString **error))work {
-    if (!work) return NO;
-    _SqlFuncBox *box = [_SqlFuncBox new];
-    box->_db = self;
-    box->_argumentsCount = count;
-    box->_block = [work copy];
-    
-    if (!_functions) _functions = [NSMutableSet set];
-    [_functions addObject:box]; 
-    return sqlite3_create_function(_db, name, count, SQLITE_UTF8, (__bridge void *)(box), &SQLiteCallBackFunction, NULL, NULL) == SQLITE_OK;
-}
-int SQLiteCallBackCollation(void *pApp, int lLen, const void *lData, int rLen, const void *rData) {
-    return (int)((__bridge NSComparisonResult (^)(NSString *__strong, NSString *__strong))(pApp))([NSString stringWithCString:lData length:lLen], [NSString stringWithCString:rData length:rLen]);
-}
- 
-- (BOOL)_makeCollationNamed:(const char *)name
-                       work:(NSComparisonResult (^)(NSString *lhs, NSString *rhs))work {
-    if (!work) return NO;
-    
-    if (!_collations) _collations = [NSMutableSet set];
-    id block = [work copy];
-    [_collations addObject:block];
-    
-    return sqlite3_create_collation_v2(_db, name, SQLITE_UTF8, (__bridge void *)(block), &SQLiteCallBackCollation, NULL) == SQLITE_OK;
-}
-
-- (BOOL)_dbOpen {
-    if (_db) return YES;
-    
-    int result = sqlite3_open(_dbPath.UTF8String, &_db);
-    if (result == SQLITE_OK) {
-        [self _addUnixepochFunction];
-        return YES;
-    }
-    else {
-        _db = NULL;
-        if (_errorLogsEnabled) {
-            NSLog(@"sqlite file '%@' open failed (%d).", _dbPath, result);
-        }
-        return NO;
-    }
-}
-- (void)_addUnixepochFunction {
-    [self _makeFunctionNamed:"unixepoch"
-                    argument:-1
-                        work:^id (YYDataBase *db, NSArray *params, NSString **error) {
-        NSInteger n = params.count;
-        if (n < 2) {
-            *error = @"param invalid";
-            return nil;
-        }
-        SqliteValueType type0 = [params[0][@"type"] intValue];
-        SqliteValueType type1 = [params[1][@"type"] intValue];
-        if ((type0 != SqliteValueTypeInteger &&
-             type0 != SqliteValueTypeFloat) ||
-            type1 != SqliteValueTypeText) {
-            *error = @"param invalid";
-            return nil;
-        }
-        NSString *sql = nil;
-        id ts = params[0][@"value"];
-        NSString *modifier = [params[1][@"value"] lowercaseString];
-        
-        if ([modifier isEqualToString:@"start of year"]) {
-            sql = [NSString stringWithFormat:@"select strftime('%%s', %@, 'unixepoch', 'localtime', 'start of year', 'utc') as result", ts];
-        } else if ([modifier isEqualToString:@"end of year"]) {
-            sql = [NSString stringWithFormat:@"select strftime('%%s', %@, 'unixepoch', 'localtime', 'start of year', '+1 year', '-1 second', 'utc') as result", ts];
-        } else if ([modifier isEqualToString:@"start of month"]) {
-            sql = [NSString stringWithFormat:@"select strftime('%%s', %@, 'unixepoch', 'localtime', 'start of month', 'utc') as result", ts];
-        } else if ([modifier isEqualToString:@"end of month"]) {
-            sql = [NSString stringWithFormat:@"select strftime('%%s', %@, 'unixepoch', 'localtime', 'start of month', '+1 month', '-1 second', 'utc') as result", ts];
-        } else if ([modifier isEqualToString:@"start of day"]) {
-            sql = [NSString stringWithFormat:@"select strftime('%%s', %@, 'unixepoch', 'localtime', 'start of day', 'utc') as result", ts];
-        } else if ([modifier isEqualToString:@"end of day"]) {
-            sql = [NSString stringWithFormat:@"select strftime('%%s', %@, 'unixepoch', 'localtime', 'start of day', '+1 day', '-1 second', 'utc') as result", ts];
-        } else if ([modifier containsString:@"week"]) {
-            NSString *delta = @"";
-            if (n > 2) {
-                SqliteValueType type2 = [params[2][@"type"] intValue];
-                if (type2 == SqliteValueTypeInteger) {
-                    int val2 = [params[2][@"value"] intValue];
-                    if (val2 > 0) {
-                        delta = [NSString stringWithFormat:@" '+%d day',", val2];
-                    } else if (val2 < 0) {
-                        delta = [NSString stringWithFormat:@" '-%d day',", abs(val2)];
-                    }
-                }
-            }
-            if ([modifier isEqualToString:@"start of week"]) {
-                sql = [NSString stringWithFormat:@"select strftime('%%s', %@, 'unixepoch', 'localtime', strftime('-%%w day', %@, 'unixepoch'), 'start of day',%@ 'utc') as result", ts, ts, delta];
-            } else if ([modifier isEqualToString:@"end of week"]) {
-                sql = [NSString stringWithFormat:@"select strftime('%%s', %@, 'unixepoch', 'localtime', strftime('-%%w day', %@, 'unixepoch'), 'start of day',%@ '+7 day', '-1 second', 'utc') as result", ts, ts, delta];
-            } else {
-                *error = @"param invalid";
-                return nil;
-            }
-        } else if ([modifier containsString:@"hour"]) {
-            NSArray<NSMutableDictionary *> *rows = [db _dbQuery:[NSString stringWithFormat:@"select strftime('%%H', %@, 'unixepoch', 'localtime') as result", ts]];
-            if (!rows.count) return nil;
-            int hour = [rows[0][@"result"] intValue];
-            
-            int step = 1;
-            if (n > 2) {
-                SqliteValueType type2 = [params[2][@"type"] intValue];
-                if (type2 == SqliteValueTypeInteger) {
-                    int val2 = [params[2][@"value"] intValue];
-                    if (val2 <= 0 || val2 > 23) {
-                        *error = @"param invalid";
-                        return nil;
-                    }
-                    step = val2;
-                }
-            }
-            NSString *delta = @"";
-            if ([modifier isEqualToString:@"start of hour"]) {
-                hour = hour / step * step;
-                delta = [NSString stringWithFormat:@"'+%d hour'", hour];
-            } else if ([modifier isEqualToString:@"end of hour"]) {
-                hour = (hour / step + 1) * step;
-                delta = [NSString stringWithFormat:@"'+%d hour'", hour];
-            } else if ([modifier isEqualToString:@"middle of hour"])  {
-                hour = (hour / step) * step;
-                delta = [NSString stringWithFormat:@"'+%d hour', '+%d minute'", hour, step * 30];
-            } else {
-                *error = @"param invalid";
-                return nil;
-            }
-            sql = [NSString stringWithFormat:@"select strftime('%%s', %@, 'unixepoch', 'localtime', 'start of day', %@, 'utc') as result", ts, delta];
-        } else if ([modifier containsString:@"minute"]) {
-            if (n < 3) {
-                *error = @"param invalid";
-                return nil;
-            }
-            int step = 0;
-            if ([params[2][@"type"] intValue] == SqliteValueTypeInteger) {
-                int val2 = [params[2][@"value"] intValue];
-                if (val2 <= 0) {
-                    *error = @"param invalid";
-                    return nil;
-                }
-                step = val2;
-            } else {
-                *error = @"param invalid";
-                return nil;
-            }
-            
-            NSArray<NSMutableDictionary *> *rows = [db _dbQuery:[NSString stringWithFormat:@"select strftime('%%H:%%M', %@, 'unixepoch', 'localtime') as result", ts]];
-            if (!rows.count) return nil;
-            NSArray *cmps = [rows[0][@"result"] componentsSeparatedByString:@":"];
-            int min = [cmps[0] intValue] * 60 + [cmps[1] intValue];
-            
-            NSString *delta = @"";
-            if ([modifier isEqualToString:@"start of minute"]) {
-                min = min / step * step;
-                delta = [NSString stringWithFormat:@"'+%d minute'", min];
-            } else if ([modifier isEqualToString:@"end of minute"]) {
-                min = (min / step + 1) * step;
-                delta = [NSString stringWithFormat:@"'+%d minute'", min];
-            } else {
-                *error = @"param invalid";
-                return nil;
-            }
-            sql = [NSString stringWithFormat:@"select strftime('%%s', %@, 'unixepoch', 'localtime', 'start of day', %@, 'utc') as result", ts, delta];
-        } else {
-            *error = @"param invalid";
-            return nil;
-        }
-        
-        NSArray<NSMutableDictionary *> *rows = [db _dbQuery:sql];
-        if (!rows.count) return nil;
-        return rows[0][@"result"];
-    }];
-}
-
-- (BOOL)_dbClose {
-    if (!_db) return YES;
-    
-    int  result = 0;
-    BOOL retry = NO;
-    BOOL stmtFinalized = NO;
-     
-    do {
-        retry = NO;
-        result = sqlite3_close(_db);
-        if (result == SQLITE_BUSY || result == SQLITE_LOCKED) {
-            if (!stmtFinalized) {
-                stmtFinalized = YES;
-                sqlite3_stmt *stmt;
-                while ((stmt = sqlite3_next_stmt(_db, nil)) != 0) {
-                    sqlite3_finalize(stmt);
-                    retry = YES;
-                }
-            }
-        } else if (result != SQLITE_OK) {
-            if (_errorLogsEnabled) {
-                NSLog(@"sqlite file '%@' close failed (%d).", _dbPath, result);
-            }
-        }
-    } while (retry);
-    _db = NULL;
-    return YES;
-}
-
-- (BOOL)_dbExecute:(NSString *)sql {
-    if (sql.length == 0) return YES;
-    if (![self _dbOpen]) return NO;
-    
-    char *error = NULL;
-    int result = sqlite3_exec(_db, sql.UTF8String, NULL, NULL, &error);
-    if (error) {
-        if (_errorLogsEnabled) NSLog(@"sqlite file '%@' exec '%@' error (%d): '%s'", _dbPath, sql, result, error);
-        sqlite3_free(error);
-    }
-    
-    return result == SQLITE_OK;
-}
-- (BOOL)_dbExecutes:(NSArray<NSString *> *)sqls {
-    if (!sqls.count) return YES;
-    if (![self _dbOpen]) return NO;
-    
-    // 开启事务
-    if (![self __executeUTF8:"begin transaction"]) return NO;
-    for (NSString *sql in sqls) {
-        if (![self __executeUTF8:sql.UTF8String]) {
-            // 回滚
-            [self __executeUTF8:"rollback transaction"];
-            return NO;
-        }
-    }
-    
-    return [self __executeUTF8:"commit transaction"];
-}
-
-- (BOOL)_dbExecutesNoRollback:(NSArray<NSString *> *)sqls {
-    if (!sqls.count) return YES;
-    if (![self _dbOpen]) return NO;
-     
-    for (NSString *sql in sqls) {
-        [self __executeUTF8:sql.UTF8String];
-    }
-    return YES;
-}
-- (NSMutableArray<NSMutableDictionary *>*)_dbQuery:(NSString *)sql {
-    if (!sql.length) return nil;
-    if (![self _dbOpen]) return nil;
-    
-    sqlite3_stmt *stmt = nil;
-    int result = sqlite3_prepare_v2(_db, sql.UTF8String, -1, &stmt, 0);
-    if (result != SQLITE_OK) {
-        if (_errorLogsEnabled) NSLog(@"sqlite file '%@' sqlite3_prepare_v2 error (%d): '%s'", _dbPath, result, sqlite3_errmsg(_db));
-        return nil;
-    }
-    
-    NSMutableArray *rows = [NSMutableArray array];
-    while (sqlite3_step(stmt) == SQLITE_ROW) {
-        int count = sqlite3_column_count(stmt);
-        NSMutableDictionary *row = [NSMutableDictionary dictionary];
-        [rows addObject:row];
-        for (int i = 0; i < count; i++) {
-            NSString *name = [NSString stringWithUTF8String:sqlite3_column_name(stmt, i)];
-            id value = nil;
-            switch (sqlite3_column_type(stmt, i)) {
-                case SQLITE_INTEGER:
-                    value = @(sqlite3_column_int(stmt, i));
-                    break;
-                case SQLITE_FLOAT:
-                    value = @(sqlite3_column_double(stmt, i));
-                    break;
-                case SQLITE_BLOB:
-                    value = [NSData dataWithBytes:sqlite3_column_blob(stmt, i)
-                                           length:sqlite3_column_bytes(stmt, i)];
-                    break;
-                case SQLITE_NULL:
-                    value = nil;
-                    break;
-                case SQLITE3_TEXT:
-                    value = [NSString stringWithUTF8String:(const char *)sqlite3_column_text(stmt, i)];
-                    break;
-            }
-            row[name] = value;
-        }
-    }
-    
-    sqlite3_finalize(stmt);
-    return rows;
-}
-
-// MARK: Private
-
-- (BOOL)__executeUTF8:(const char *)sql {
-    if (strlen(sql) == 0) return YES;
-    
-    char *error = NULL;
-    int result = sqlite3_exec(_db, sql, NULL, NULL, &error);
-    if (error) {
-        if (_errorLogsEnabled) NSLog(@"sqlite file '%@' exec '%s' error (%d): '%s'", _dbPath, sql, result, error);
-        sqlite3_free(error);
-    }
-    
-    return result == SQLITE_OK;
-}
- 
-- (void)dealloc {
-//    NSLog(@"%s", __FUNCTION__);
-    [self _dbClose];
-}
-
-@end
-
+#import "YYDataBase.h"
 
 #import "NSString+YYModel.h"
 static force_inline NSString *YYTableNameFromClass(Class cls) {
@@ -2848,28 +2426,10 @@ static force_inline NSString *YYTableNameFromClass(Class cls) {
 }
 static force_inline NSString *YYTmpTableNameFromClass(Class cls) {
     return [NSString stringWithFormat:@"t_%@_tmp", NSStringFromClass(cls)];
-}
-
-
-
-static force_inline bool dispatch_queue_current_is(dispatch_queue_t queue) {
-    static void *key = &key;
-    dispatch_queue_set_specific(queue, key, key, NULL);
-    void *flag = dispatch_get_specific(key);
-    dispatch_queue_set_specific(queue, key, NULL, NULL);
-    return flag == key;
-}
+} 
 
 static NSMapTable *_cache;
 static dispatch_semaphore_t _lock;
-static dispatch_queue_t _YYGetGlobalSerialQueue() {
-    static dispatch_once_t onceToken;
-    static dispatch_queue_t queue;
-    dispatch_once(&onceToken, ^{
-        queue = dispatch_queue_create("db.queue", DISPATCH_QUEUE_SERIAL);
-    });
-    return queue;
-}
 
 static YYDataBase *_YYGetGlobalDBFromCache(Class cls) {
     NSString *path = [cls db_filePath];
@@ -3002,7 +2562,7 @@ static force_inline NSArray *KeyConstraintOrder() {
                 } else if ([value isKindOfClass:[NSString class]]) {
                     tag = [tag stringByAppendingFormat:@" '%@'", value];
                 } else {
-                    if (_errorLogsEnabled) {
+                    if (DBErrorLogsEnabled) {
                         NSLog(@"can not convert %@ to NSSNumber or NSSting, please check your table or the default value design correctly", self.types[num]);
                     }
                     tag = nil;
@@ -3157,318 +2717,6 @@ static force_inline NSArray *KeyConstraintOrder() {
 }
 @end
 
-
-/// Sql关键字
-typedef NS_ENUM(NSInteger, SqlKeywordType) {
-    SqlKeywordInsert = 0,
-    SqlKeywordInsertOrReplace,
-    SqlKeywordUpdate,
-    SqlKeywordSet,
-    SqlKeywordDelete,
-    SqlKeywordSelect,
-    
-    SqlKeywordSelectCount,
-    SqlKeywordFrom,
-    SqlKeywordMultiFrom,
-    
-    SqlKeywordWhere,
-    SqlKeywordOn,
-    SqlKeywordGroupBy,
-    SqlKeywordHaving,
-    SqlKeywordOrderBy,
-    SqlKeywordLimit,
-    
-    SqlKeywordJoin,
-    SqlKeywordLeftJoin,
-    
-    SqlKeywordUnion,
-    SqlKeywordUnionAll,
-    
-    SqlKeywordCustome,
-};
-
-static force_inline NSString *SqlKeywordFromType(SqlKeywordType type) {
-    switch (type) {
-        case SqlKeywordInsert: return @"insert into";
-        case SqlKeywordInsertOrReplace: return @"insert or replace into";
-        case SqlKeywordUpdate: return @"update";
-        case SqlKeywordSet: return @"set";
-        case SqlKeywordDelete: return @"delete from";
-        case SqlKeywordSelect: return @"select";
-        case SqlKeywordSelectCount: return @"select count";
-        case SqlKeywordFrom: return @"from";
-        case SqlKeywordWhere: return @"where";
-        case SqlKeywordOn: return @"on";
-        case SqlKeywordGroupBy: return @"group by";
-        case SqlKeywordHaving: return @"having";
-        case SqlKeywordOrderBy: return @"order by";
-        case SqlKeywordLimit: return @"limit";
-            
-        case SqlKeywordJoin: return @"inner join";
-        case SqlKeywordLeftJoin: return @"left outer join";
-            
-        case SqlKeywordUnion: return @"union";
-        case SqlKeywordUnionAll: return @"union all";
-        default: return @"";
-    }
-}
-
-static force_inline NSArray<NSNumber *> *SqlKeywordsOrderFromType(SqlStatementType type) {
-    switch (type) {
-        case DMLUpdate:
-            return @[@(SqlKeywordUpdate),
-                     @(SqlKeywordSet),
-                     @(SqlKeywordWhere)];
-            
-        case DMLDelete:
-            return @[@(SqlKeywordDelete),
-                     @(SqlKeywordWhere)];
-            
-        case DQLSelect:
-            return @[@(SqlKeywordSelect),
-                     @(SqlKeywordFrom),
-                     @(SqlKeywordJoin),
-                     @(SqlKeywordOn),
-                     @(SqlKeywordWhere),
-                     @(SqlKeywordGroupBy),
-                     @(SqlKeywordHaving),
-                     @(SqlKeywordOrderBy),
-                     @(SqlKeywordLimit),
-                     @(SqlKeywordUnion),
-                     @(SqlKeywordUnionAll)];
-            
-        case DQLSelectCount:
-            return @[@(SqlKeywordSelectCount),
-                     @(SqlKeywordFrom),
-                     @(SqlKeywordWhere),];
-        default: return @[];
-    }
-}
-
-@interface SqlMaker ()
-/// 子句
-@property (nonatomic, strong) NSMutableDictionary<NSNumber *, id> *subs;
- 
-@property (nonatomic, assign) Class modelCls;
-@property (nonatomic, assign) Class tableCls;
-@end
-@implementation SqlMaker {
-    @package
-    SqlStatementType _type;
-}
-
-- (instancetype)initWithClass:(Class)tableCls type:(SqlStatementType)type {
-    self = [super init];
-    if (!self) return self;
-    _type = type;
-    _subs = [NSMutableDictionary dictionaryWithCapacity:16];
-    if (!tableCls) return self;
-    _tableCls = tableCls;
-    
-    switch (type) {
-        case DMLUpdate: {
-            _subs[@(SqlKeywordUpdate)] = [tableCls db_tableName];
-        } break;
-        case DMLDelete: {
-            _subs[@(SqlKeywordDelete)] = [tableCls db_tableName];
-        } break;
-        case DQLSelect: {
-            _modelCls = tableCls;
-        } break;
-        case DQLSelectCount: {
-            _subs[@(SqlKeywordSelectCount)] = @"(*)";
-            _subs[@(SqlKeywordFrom)] = [tableCls db_tableName];
-        } break;
-    }
-    return self;
-}
-+ (instancetype)makerWithClass:(Class)tableCls type:(SqlStatementType)type {
-    return [[[self class] alloc] initWithClass:tableCls type:type];
-}
- 
-- (SqlMaker *  _Nonnull (^)(NSString * _Nonnull, ...))set {
-    return [self _formatWithType:SqlKeywordSet];
-}
- 
-
-- (SqlMaker * _Nonnull (^)(NSString * _Nonnull, ...))selectCount {
-    return [self _formatWithType:SqlKeywordSelectCount paramHandler:^NSString *(NSString *param) {
-        BOOL hasPrefix = [param hasPrefix:@"("];
-        BOOL hasSuffix = [param hasSuffix:@")"];
-        if (hasPrefix) return param;
-        if (hasSuffix) return [@"(" stringByAppendingString:param];
-        return [NSString stringWithFormat:@"(%@)", param];
-    }];
-}
-- (SqlMaker * _Nonnull (^)(ColumnName _Nonnull, ...))select {
-    return [self _appendFormatWithType:SqlKeywordSelect];
-}
-- (SqlMaker * _Nonnull (^)(TableName _Nonnull, ...))from {
-    if (_type == DQLSelect) {
-       return [self _appendFormatWithType:SqlKeywordFrom];
-    } else {
-        return [self _formatWithType:SqlKeywordFrom];
-    }
-}
-
-- (SqlMaker * _Nonnull (^)(NSString * _Nonnull, ...))where {
-    return [self _formatWithType:SqlKeywordWhere];
-}
-- (SqlMaker *  _Nonnull (^)(NSString * _Nonnull, ...))groupBy {
-    return [self _formatWithType:SqlKeywordGroupBy];
-}
-- (SqlMaker * _Nonnull (^)(NSString * _Nonnull, ...))having {
-    return [self _formatWithType:SqlKeywordHaving];
-}
-- (SqlMaker *  _Nonnull (^)(NSString * _Nonnull, ...))orderyBy {
-    return [self _formatWithType:SqlKeywordOrderBy];
-}
-- (SqlMaker *  _Nonnull (^)(NSUInteger, NSUInteger))limit {
-    return ^(NSUInteger location, NSUInteger length) {
-        self->_subs[@(SqlKeywordLimit)] = [NSString stringWithFormat:@"%lu, %lu", location, length];
-        return self;
-    };
-}
-- (SqlMaker * _Nonnull (^)(Class  _Nonnull __unsafe_unretained))toModel {
-    return ^(Class modelCls) {
-        self->_modelCls = modelCls;
-        return self;
-    };
-}
-  
-- (SqlMaker * _Nonnull (^)(NSString * _Nonnull, ...))join {
-    return [self _formatWithType:SqlKeywordJoin paramHandler:^NSString *(NSString *param) {
-        self->_subs[@(SqlKeywordLeftJoin)] = nil;
-        return param;
-    }];
-}
-- (SqlMaker * _Nonnull (^)(NSString * _Nonnull, ...))leftJoin {
-    return [self _formatWithType:SqlKeywordLeftJoin paramHandler:^NSString *(NSString *param) {
-        self->_subs[@(SqlKeywordJoin)] = nil;
-        return param;
-    }];
-}
-- (SqlMaker * _Nonnull (^)(NSString * _Nonnull, ...))on {
-    return [self _formatWithType:SqlKeywordOn];
-}
- 
-- (SqlMaker * _Nonnull (^)(NSString * _Nonnull, ...))db_union {
-    return [self _formatWithType:SqlKeywordUnion paramHandler:^NSString *(NSString *param) {
-        self->_subs[@(SqlKeywordUnionAll)] = nil;
-        return param;
-    }];
-}
-- (SqlMaker * _Nonnull (^)(NSString * _Nonnull, ...))unionAll {
-    return [self _formatWithType:SqlKeywordUnionAll paramHandler:^NSString *(NSString *param) {
-        self->_subs[@(SqlKeywordUnion)] = nil;
-        return param;
-    }];
-}
-- (NSString *)statement {
-    if ([_subs[@(SqlKeywordCustome)] length]) return _subs[@(SqlKeywordCustome)];
-     
-    NSArray<NSNumber *> *orders = SqlKeywordsOrderFromType(_type);
-    if (_type == DQLSelect) {
-
-        if (![_subs[@(SqlKeywordSelect)] length]) {
-            _subs[@(SqlKeywordSelect)] = [_tableCls dbColumns];
-        }
-        if (![_subs[@(SqlKeywordFrom)] length]) {
-            _subs[@(SqlKeywordFrom)] = [_tableCls db_tableName];
-        }
-    }
-    NSMutableArray *subs = [NSMutableArray arrayWithCapacity:orders.count];
-    for (NSNumber *num in orders) {
-        SqlKeywordType type = num.integerValue;
-        NSString *value = _subs[num];
-        if (!value.length) continue;
-        [subs addObject:[NSString stringWithFormat:@"%@ %@", SqlKeywordFromType(type), value]];
-    }
-    if (!subs.count) return @";";
-    return [[subs componentsJoinedByString:@" "] stringByAppendingString:@";"];
-}
-
-- (void)execSQLWithFormat:(NSString *)format, ... {
-    va_list argList;
-    va_start(argList, format);
-    NSString *param = [[NSString alloc] initWithFormat:format arguments:argList];
-    va_end(argList);
-    self->_subs[@(SqlKeywordCustome)] = param;
-}
-- (void)execSQL:(NSString *)sqlString {
-    self->_subs[@(SqlKeywordCustome)] = sqlString;
-}
-
-// MARK: Private
-- (SqlMaker *  _Nonnull (^)(NSString * _Nonnull, ...))_formatWithType:(SqlKeywordType)type {
-    return [self _formatWithType:type paramHandler:nil];
-}
-- (SqlMaker *  _Nonnull (^)(NSString * _Nonnull, ...))_formatWithType:(SqlKeywordType)type paramHandler:(NSString * (^)(NSString *param))handler {
-    return ^(NSString *format, ...) {
-        va_list argList;
-        va_start(argList, format);
-        NSString *param = [[NSString alloc] initWithFormat:format arguments:argList];
-        va_end(argList);
-        if (handler) param = handler(param);
-        if (param) self->_subs[@(type)] = param;
-        return self;
-    };
-}
-- (SqlMaker *  _Nonnull (^)(NSString * _Nonnull, ...))_appendFormatWithType:(SqlKeywordType)type {
-    return ^(NSString *format, ...) {
-        va_list argList;
-        va_start(argList, format);
-        NSString *param = [[NSString alloc] initWithFormat:format arguments:argList];
-        va_end(argList);
-        if (!param.length) return self;
-        
-        NSMutableString *exists = self->_subs[@(type)];
-        if (!exists) {
-            exists = [NSMutableString stringWithString:param];
-            self->_subs[@(type)] = exists;
-        } else [exists appendFormat:@", %@",param];
-         
-        return self;
-    };
-}
-
-- (NSString *)description {
-    return [self statement];
-}
-@end
-
-static YYDataBase *_YYGetMemoryDB() {
-    static YYDataBase *_db;
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        _db = [[YYDataBase alloc] initWithPath:nil];
-    });
-    return _db;
-}
-id db_exec(NSString *format, ...) {
-    va_list argList;
-    va_start(argList, format);
-    NSString *func = [[NSString alloc] initWithFormat:format arguments:argList];
-    va_end(argList);
-    return db_func(func);
-}
-id db_func(NSString *func) {
-    NSArray<NSDictionary *> *rows = db_query([NSString stringWithFormat:@"select %@ as result;", func]);
-    if (!rows.count) {
-        return nil;
-    }
-    return rows[0][@"result"];
-}
-NSArray<NSDictionary<NSString *, id> *> *db_query(NSString *sql) {
-    YYDataBase *db = _YYGetMemoryDB();
-    NSArray<NSMutableDictionary *> *rows = [db _dbQuery:sql];
-    if (!rows.count) {
-        if (_errorLogsEnabled) NSLog(@"%s", sqlite3_errmsg(db->_db));
-        return nil;
-    }
-    return rows;
-}
-
 // MARK: - Sqlte date and time
 DBCondition db_year_is(const char *column, int year) {
     return [NSString stringWithFormat:@"strftime('%%Y', %s, 'localtime') = '%d'", column, year];
@@ -3478,11 +2726,6 @@ DBCondition db_month_is(const char *column, int month) {
 }
 DBCondition db_day_is(const char *column, int day) {
     return [NSString stringWithFormat:@"strftime('%%d', %s, 'localtime') = '%d'", column, day];
-}
-
-
-dispatch_queue_t DBQueue(void) {
-    return _YYGetGlobalSerialQueue();
 }
 // MARK: - NSObject - YYDataBase
 
@@ -3500,7 +2743,7 @@ dispatch_queue_t DBQueue(void) {
         if (![[NSURL fileURLWithPath:path] isFileURL] ||
             !fileName.length ||
             [fileName isEqualToString:@"(null)"]) {
-            if (_errorLogsEnabled) {
+            if (DBErrorLogsEnabled) {
                 NSLog(@"since %@ is not a valid db file path, all db ops will not be executed", path);
             }
             return nil;
@@ -3520,7 +2763,7 @@ dispatch_queue_t DBQueue(void) {
     if (![self _db_initializeIfNecessary]) return nil;
     YYDataBase *db = _YYGetGlobalDBFromCache(self);
     NSString *tableName = [self db_tableName];
-    NSMutableArray *res = [db _dbQuery:[NSString stringWithFormat:@"select version from t_master where name = '%@';", tableName]];
+    NSArray *res = [db query:[NSString stringWithFormat:@"select version from t_master where name = '%@';", tableName]];
     return res.count ? res[0][@"version"] : nil;
 }
 + (BOOL)db_close {
@@ -3532,7 +2775,7 @@ dispatch_queue_t DBQueue(void) {
     dispatch_semaphore_wait(_lock, DISPATCH_TIME_FOREVER);
     YYDataBase *db = [_cache objectForKey:path];
     if (db)  {
-        res = [db _dbClose];
+        res = [db close];
         if (res) [_cache removeObjectForKey:path];
     }
     dispatch_semaphore_signal(_lock);
@@ -3583,27 +2826,11 @@ dispatch_queue_t DBQueue(void) {
                                                blackList:exclude];
         return @[sql];
     }];
-}
-- (BOOL)db_updateWithSqlMaker:(void (^)(SqlMaker * _Nonnull))maker {
-    if (!maker) return YES;
-    return [[self class] _db_initializeIfNecessaryWithSqls:^NSArray<NSString *> *(NSString *tableName, NSString *primaryKey, _YYModelMeta *meta) {
-        SqlMaker *sql = [SqlMaker makerWithClass:self.class type:DMLUpdate];
-        maker(sql);
-        return @[[sql statement]];
-    }];
-}
-+ (BOOL)db_updateWithSqlMaker:(void (^)(SqlMaker * _Nonnull))maker {
-    if (!maker) return YES;
-    return [self _db_initializeIfNecessaryWithSqls:^NSArray<NSString *> *(NSString *tableName, NSString *primaryKey, _YYModelMeta *meta) {
-        SqlMaker *sql = [SqlMaker makerWithClass:self type:DMLUpdate];
-        maker(sql);
-        return @[sql.statement];
-    }];
-}
+} 
 + (BOOL)db_updateSeqFromSequenceTable:(NSInteger)value {
     YYDataBase *db = _YYGetGlobalDBFromCache(self);
     NSString *tableName = [self db_tableName];
-    return [db _dbExecute:[NSString stringWithFormat:@"update sqlite_sequence set seq = %zu where name = '%@';", value, tableName]];
+    return [db execute:[NSString stringWithFormat:@"update sqlite_sequence set seq = %zu where name = '%@';", value, tableName]];
 }
 
 - (BOOL)db_delete {
@@ -3630,14 +2857,7 @@ dispatch_queue_t DBQueue(void) {
         }] componentsJoinedByString:@", "];
         return @[[NSString stringWithFormat:@"delete from %@ where %@ in (%@);", tableName, primaryKey, valRange]];
     }];
-}
-+ (BOOL)db_deleteWithSqlMaker:(void (^)(SqlMaker * _Nonnull))maker {
-    return [self _db_initializeIfNecessaryWithSqls:^NSArray<NSString *> *(NSString *tableName, NSString *primaryKey, _YYModelMeta *meta) {
-        SqlMaker *sql = [SqlMaker makerWithClass:self type:DMLDelete];
-        !maker ?: maker(sql);
-        return @[sql.statement];
-    }];
-}
+} 
 
 - (instancetype)db_select {
     Class cls = [self class];
@@ -3659,39 +2879,7 @@ dispatch_queue_t DBQueue(void) {
     if (!row) return nil;
     return [self db_modelWithDictionary:row];
 }
-
-+ (NSArray *)db_selectWithSqlMaker:(void (^)(SqlMaker * _Nonnull))maker {
-    __block Class modelCls = NULL;
-    NSArray *rows = [self _db_selectRowsWithSqlMaker:^(SqlMaker * _Nonnull sql) {
-        !maker ?: maker(sql);
-        modelCls = sql.modelCls ?: self;
-    }];
-    
-    if (!rows.count) return nil;
-    
-    if ([modelCls isKindOfClass:object_getClass([NSDictionary class])]) {
-        return rows;
-    } else if ([modelCls isKindOfClass:object_getClass([NSString class])])  {
-        return [rows _db_map:^id _Nullable(NSMutableDictionary *obj, NSUInteger idx) {
-            return [obj modelToJSONString];
-        }];
-    } else {
-        return [rows _db_map:^id _Nullable(NSMutableDictionary *obj, NSUInteger idx) {
-            return [modelCls db_modelWithDictionary:obj];
-        }];
-    }
-}
-+ (NSString *)db_selectJSONWithSqlMaker:(void (^)(SqlMaker * _Nonnull))maker {
-    NSArray *rows = [self _db_selectRowsWithSqlMaker:maker];
-    if (!rows.count) return @"nil";
-    return [rows modelToJSONString];
-} 
-
-+ (NSUInteger)db_selectCountWithSqlMaker:(void (^)(SqlMaker * _Nonnull))maker {
-    NSArray<NSDictionary *> *rows = [self _db_selectRowsWithSqlMaker:maker type:DQLSelectCount];
-    if (!rows.count) return 0;
-    return [rows[0].allValues[0] integerValue];
-}
+ 
 
 + (BOOL)db_dropTable {
     YYDataBase *db = _YYGetGlobalDBFromCache(self);
@@ -3700,46 +2888,24 @@ dispatch_queue_t DBQueue(void) {
     [sqls addObject:[NSString stringWithFormat:@"drop table if exists %@;", tableName]];
     [sqls addObject:[NSString stringWithFormat:@"delete from t_master where name = '%@';", tableName]];
     [sqls addObject:[NSString stringWithFormat:@"delete from sqlite_sequence where name = '%@';", tableName]];
-    return [db _dbExecutesNoRollback:sqls];
+    return [db executesNoRollback:sqls];
 }
 + (BOOL)db_dropIndexTable {
     YYDataBase *db = _YYGetGlobalDBFromCache(self);
     NSString *tableName = [self db_tableName];
-    return [db _dbExecute:[NSString stringWithFormat:@"drop index if exists %@_index;", tableName]];
+    return [db execute:[NSString stringWithFormat:@"drop index if exists %@_index;", tableName]];
 }
-
-+ (BOOL)db_makeFunctionNamed:(const char *)name
-                    argument:(int)count
-                        work:(id _Nullable (^)(NSArray *params, NSString **querySQLAsResult, NSString **error))work {
-    if (!work) return NO;
-    YYDataBase *db = _YYGetGlobalDBFromCache(self);
-    return [db _makeFunctionNamed:name argument:-1 work:^id _Nullable(YYDataBase *db, NSArray *params, NSString *__autoreleasing *error) {
-        NSString *sql = nil;
-        id val = work(params, &sql, error);
-        if (sql.length) { 
-            NSArray<NSMutableDictionary *> *rows = [db _dbQuery:sql];
-            if (!rows.count) return nil;
-            return rows[0].allValues.firstObject;
-        } else {
-            return val;
-        }
-    }];
-}
-+ (BOOL)db_makeCollationNamed:(const char *)name
-                         work:(NSComparisonResult (^)(NSString *lhs, NSString *rhs))work {
-    if (!work) return NO;
-    YYDataBase *db = _YYGetGlobalDBFromCache(self);
-    return [db _makeCollationNamed:name work:work];
-}
+ 
 
 + (BOOL)db_execute:(NSString *)sql {
     if (!sql.length) return NO;
     YYDataBase *db = _YYGetGlobalDBFromCache(self);
-    return [db _dbExecute:sql];
+    return [db execute:sql];
 }
 + (NSArray<NSDictionary<NSString *, id> *> *)db_query:(NSString *)sql {
+    if (!sql.length) return nil;
     YYDataBase *db = _YYGetGlobalDBFromCache(self);
-    return [db _dbQuery:sql];
+    return [db query:sql];
 }
 
 + (BOOL)db_updateTableIfNecessary {
@@ -3751,62 +2917,10 @@ dispatch_queue_t DBQueue(void) {
     return [self _db_createTableSqlWithTableName:[self db_tableName]];
 }
 + (NSString *)db_lastErrorMessage {
-    return [NSString stringWithUTF8String:sqlite3_errmsg(_YYGetGlobalDBFromCache(self)->_db)];
+    return _YYGetGlobalDBFromCache(self).lastErrorMessage;
 }
 
-
-+ (void)db_threadSafe:(void (^)(void))block {
-    if (!block) return;
-    dispatch_queue_t queue = _YYGetGlobalSerialQueue();
-    if (dispatch_queue_current_is(queue)) {
-        block();
-    } else {
-        dispatch_sync(queue, block);
-    }
-}
-+ (id)db_threadSafeReturned:(id  _Nullable (^)(void))block {
-    if (!block) return nil;
-    dispatch_queue_t queue = _YYGetGlobalSerialQueue();
-    if (dispatch_queue_current_is(queue)) {
-        return block();
-    } else {
-        __block id val = nil;
-        dispatch_sync(queue, ^{
-            val = block();
-        });
-        return val;
-    }
-}
-+ (void)db_work:(id  _Nullable (^)(void))work finish:(void (^)(id _Nullable))finish {
-    if (!work) {
-        !finish ?: finish(nil);
-        return;
-    }
-    dispatch_async(_YYGetGlobalSerialQueue(), ^{
-        id val = work();
-        if (!finish) return;
-        dispatch_async(dispatch_get_main_queue(), ^{
-            finish(val);
-        });
-    });
-} 
-
-// MARK: Private 
-
-+ (NSArray<NSMutableDictionary *> *)_db_selectRowsWithSqlMaker:(void (^)(SqlMaker *maker))maker {
-    return [self _db_selectRowsWithSqlMaker:maker type:DQLSelect];
-}
-+ (NSArray<NSMutableDictionary *> *)_db_selectRowsWithSqlMaker:(void (^)(SqlMaker *maker))maker
-                                                          type:(SqlStatementType)type {
-    __block NSArray<NSMutableDictionary *> *rows = nil;
-    [self _db_initializeIfNecessaryWithBarrierSqls:^(NSString *tableName, NSString *primaryKey, YYDataBase *db, _YYModelMeta *meta) {
-        SqlMaker *sql = [SqlMaker makerWithClass:self type:type];
-        !maker ?: maker(sql);
-        
-        rows = [db _dbQuery:sql.statement];
-    }];
-    return rows;
-}
+// MARK: Private
 
 + (NSDictionary *)_db_selectRowWithPrimaryValue:(id)value {
     if (!value) return nil;
@@ -3816,7 +2930,7 @@ dispatch_queue_t DBQueue(void) {
         NSString *colums = [[meta _dbColumnNames] componentsJoinedByString:@", "];
         
         NSString *sql = [NSString stringWithFormat:@"select %@ from %@ where %@;", colums, tableName, DBKeyValueDescription(@[primaryKey, value])];
-        NSArray *rows = [db _dbQuery:sql];
+        NSArray *rows = [db query:sql];
         if (!rows.count) return;
         row = rows[0];
     }];
@@ -3914,15 +3028,15 @@ dispatch_queue_t DBQueue(void) {
     NSString *primaryKey = meta.db_primaryKey;
     
     NSMutableArray<NSString *> *sqls = [NSMutableArray arrayWithCapacity:16];
-    if ([db _dbQuery:@"select name from sqlite_master where type = 'table' and name = 't_master';"].count == 0) {
+    if ([db query:@"select name from sqlite_master where type = 'table' and name = 't_master';"].count == 0) {
         NSString *first = [NSString stringWithFormat:@"create table if not exists t_master(name text primary key, columns text, primaryKey text, version text, %@);", _DBExtraDebugColumns()];
         [sqls addObject:first];
     } else {
-        NSArray *result = [db _dbQuery:[NSString stringWithFormat:@"select version, primaryKey, columns from t_master where name = '%@';", tableName]];
+        NSArray *result = [db query:[NSString stringWithFormat:@"select version, primaryKey, columns from t_master where name = '%@';", tableName]];
         if (result.count > 0) {
             if (![cls respondsToSelector:@selector(db_NewVersion)]) {
                 if (!block) return YES;
-                return [db _dbExecutes:block(tableName, primaryKey, db, meta)];
+                return [db executes:block(tableName, primaryKey, db, meta)];
             }
             // 判断是否需要更新表
             NSString *newVersion = [(id<YYDataBase>)cls db_NewVersion];
@@ -3930,7 +3044,7 @@ dispatch_queue_t DBQueue(void) {
             if ([newVersion compareVersion:dbVersion] < 1) {
                 /// 没有增加版本号，无需迁移表
                 if (!block) return YES;
-                return [db _dbExecutes:block(tableName, primaryKey, db, meta)];
+                return [db executes:block(tableName, primaryKey, db, meta)];
             }
             NSCharacterSet *whiteSet = [NSCharacterSet whitespaceAndNewlineCharacterSet];
             /// 新表的所有字段
@@ -3946,7 +3060,7 @@ dispatch_queue_t DBQueue(void) {
             if ([newColumnNames isEqualToString:dbColumnNames]) {
                 ///新表的所有字段与旧表的所有字段相同，无需迁移
                 if (!block) return YES;
-                return [db _dbExecutes:block(tableName, primaryKey, db, meta)];
+                return [db executes:block(tableName, primaryKey, db, meta)];
             }
             
             NSString *tmpTableName = YYTmpTableNameFromClass(cls);
@@ -3985,15 +3099,15 @@ dispatch_queue_t DBQueue(void) {
             /// 更新信息
             [sqls addObject:[NSString stringWithFormat:@"update t_master set columns = '%@', primaryKey = '%@', version = '%@' where name = '%@';", newColumnNames, primaryKey, newVersion, tableName]];
             
-            if (!block) return [db _dbExecutes:sqls];
+            if (!block) return [db executes:sqls];
             
             if (barrier) {
-                BOOL res = [db _dbExecutes:sqls];
+                BOOL res = [db executes:sqls];
                 if (!res) return NO;
-                return [db _dbExecutes:block(tableName, primaryKey, db, meta)];
+                return [db executes:block(tableName, primaryKey, db, meta)];
             } else {
                 [sqls addObjectsFromArray:block(tableName, primaryKey, db, meta)];
-                return [db _dbExecutes:sqls];
+                return [db executes:sqls];
             }
         }
     }
@@ -4010,14 +3124,14 @@ dispatch_queue_t DBQueue(void) {
     // 记录此表的信息
     [sqls addObject:[NSString stringWithFormat:@"insert or replace into t_master (name, columns, primaryKey, version) values('%@', '%@', '%@', '%@');", tableName, [[meta _dbColumnNamesDebuged] componentsJoinedByString:@","], primaryKey, version]];
     
-    if (!block) return [db _dbExecutes:sqls];
+    if (!block) return [db executes:sqls];
     if (barrier) {
-        BOOL res = [db _dbExecutes:sqls];
+        BOOL res = [db executes:sqls];
         if (!res) return NO;
-        return [db _dbExecutes:block(tableName, primaryKey, db, meta)];
+        return [db executes:block(tableName, primaryKey, db, meta)];
     } else {
         [sqls addObjectsFromArray:block(tableName, primaryKey, db, meta)];
-        return [db _dbExecutes:sqls];
+        return [db executes:sqls];
     }
 }
 
