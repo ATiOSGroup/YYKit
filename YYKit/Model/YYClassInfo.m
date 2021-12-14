@@ -134,7 +134,7 @@ YYEncodingType YYEncodingGetType(const char *typeEncoding) {
     }
     unsigned int argumentCount = method_getNumberOfArguments(method);
     if (argumentCount > 0) {
-        NSMutableArray *argumentTypes = [NSMutableArray new];
+        NSMutableArray *argumentTypes = [NSMutableArray arrayWithCapacity:argumentCount];
         for (unsigned int i = 0; i < argumentCount; i++) {
             char *argumentType = method_copyArgumentType(method, i);
             NSString *type = argumentType ? [NSString stringWithUTF8String:argumentType] : nil;
@@ -180,7 +180,7 @@ YYEncodingType YYEncodingGetType(const char *typeEncoding) {
                         
                         NSMutableArray *protocols = nil;
                         while ([scanner scanString:@"<" intoString:NULL]) {
-                            NSString* protocol = nil;
+                            NSString *protocol = nil;
                             if ([scanner scanUpToString:@">" intoString: &protocol]) {
                                 if (protocol.length) {
                                     if (!protocols) protocols = [NSMutableArray new];
@@ -330,8 +330,8 @@ YYEncodingType YYEncodingGetType(const char *typeEncoding) {
     if (!cls) return nil;
     static CFMutableDictionaryRef classCache;
     static CFMutableDictionaryRef metaCache;
-    static dispatch_once_t onceToken;
     static dispatch_semaphore_t lock;
+    static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         classCache = CFDictionaryCreateMutable(CFAllocatorGetDefault(), 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
         metaCache = CFDictionaryCreateMutable(CFAllocatorGetDefault(), 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);

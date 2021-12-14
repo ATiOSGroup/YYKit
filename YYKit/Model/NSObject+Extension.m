@@ -302,12 +302,12 @@ static force_inline NSDate *YYNSDateFromString(__unsafe_unretained NSString *str
             NSDateFormatter *formatter = [NSDateFormatter new];
             formatter.locale = [[NSLocale alloc] initWithLocaleIdentifier:@"en_US_POSIX"];
             formatter.dateFormat = @"yyyy-MM-dd'T'HH:mm:ssZ";
+            blocks[20] = ^(NSString *string) { return [formatter dateFromString:string]; };
             
             NSDateFormatter *formatter2 = [NSDateFormatter new];
             formatter2.locale = [[NSLocale alloc] initWithLocaleIdentifier:@"en_US_POSIX"];
             formatter2.dateFormat = @"yyyy-MM-dd'T'HH:mm:ss.SSSZ";
             
-            blocks[20] = ^(NSString *string) { return [formatter dateFromString:string]; };
             blocks[24] = ^(NSString *string) { return [formatter dateFromString:string]?: [formatter2 dateFromString:string]; };
             blocks[25] = ^(NSString *string) { return [formatter dateFromString:string]; };
             blocks[28] = ^(NSString *string) { return [formatter2 dateFromString:string]; };
@@ -322,12 +322,11 @@ static force_inline NSDate *YYNSDateFromString(__unsafe_unretained NSString *str
             NSDateFormatter *formatter = [NSDateFormatter new];
             formatter.locale = [[NSLocale alloc] initWithLocaleIdentifier:@"en_US_POSIX"];
             formatter.dateFormat = @"EEE MMM dd HH:mm:ss Z yyyy";
+            blocks[30] = ^(NSString *string) { return [formatter dateFromString:string]; };
             
             NSDateFormatter *formatter2 = [NSDateFormatter new];
             formatter2.locale = [[NSLocale alloc] initWithLocaleIdentifier:@"en_US_POSIX"];
             formatter2.dateFormat = @"EEE MMM dd HH:mm:ss.SSS Z yyyy";
-            
-            blocks[30] = ^(NSString *string) { return [formatter dateFromString:string]; };
             blocks[34] = ^(NSString *string) { return [formatter2 dateFromString:string]; };
         }
     });
