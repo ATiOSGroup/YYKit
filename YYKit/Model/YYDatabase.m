@@ -1,5 +1,5 @@
 //
-//  YYDataBase.m
+//  YYDatabase.m
 //  YYKit <https://github.com/ibireme/YYKit>
 //
 //  Created by ibireme on 15/5/9.
@@ -9,7 +9,7 @@
 //  LICENSE file in the root directory of this source tree.
 //
 
-#import "YYDataBase.h"
+#import "YYDatabase.h"
 
 #if __has_include(<sqlite3.h>)
 #import <sqlite3.h>
@@ -32,9 +32,9 @@
 @end
 @implementation _SqlFuncBox {
     @package
-    __unsafe_unretained YYDataBase *_db;
+    __unsafe_unretained YYDatabase *_db;
     int _argumentsCount;
-    id _Nullable (^_block)(YYDataBase *db, NSArray<SqlFuncParam *> *params, NSString **error);
+    id _Nullable (^_block)(YYDatabase *db, NSArray<SqlFuncParam *> *params, NSString **error);
 }
 @end
 
@@ -99,7 +99,7 @@ void SQLiteCallBackFunction(sqlite3_context *context, int argc, sqlite3_value **
     }
 }
 
-@implementation YYDataBase {
+@implementation YYDatabase {
     @package
     NSString *_dbPath;
     sqlite3 *_db;
@@ -107,19 +107,19 @@ void SQLiteCallBackFunction(sqlite3_context *context, int argc, sqlite3_value **
     NSMutableSet *_collations;
 }
 
-+ (instancetype)memory {
-    static YYDataBase *_db;
++ (YYDatabase *)memory {
+    static YYDatabase *_db;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
-        _db = [[YYDataBase alloc] initWithPath:@":memory:"];
+        _db = [[YYDatabase alloc] initWithPath:@":memory:"];
     });
     return _db;
 }
-+ (instancetype)temporary {
-    static YYDataBase *_db;
++ (YYDatabase *)temporary {
+    static YYDatabase *_db;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
-        _db = [[YYDataBase alloc] initWithPath:@""];
+        _db = [[YYDatabase alloc] initWithPath:@""];
     });
     return _db;
 }
@@ -132,7 +132,7 @@ void SQLiteCallBackFunction(sqlite3_context *context, int argc, sqlite3_value **
 }
 - (BOOL)makeFunctionNamed:(const char *)name
                  argument:(int)count
-                     work:(id _Nullable (^)(YYDataBase * _Nonnull, NSArray<SqlFuncParam *> * _Nonnull, NSString * _Nullable __autoreleasing * _Nonnull))work {
+                     work:(id _Nullable (^)(YYDatabase * _Nonnull, NSArray<SqlFuncParam *> * _Nonnull, NSString * _Nullable __autoreleasing * _Nonnull))work {
     if (!work) return NO;
     _SqlFuncBox *box = [_SqlFuncBox new];
     box->_db = self;
@@ -163,7 +163,8 @@ int SQLiteCallBackCollation(void *pApp, int lLen, const void *lData, int rLen, c
     
     int result = sqlite3_open(_dbPath.UTF8String, &_db);
     if (result == SQLITE_OK) {
-        [self _addUnixepochFunction];
+        BOOL success = [self _addUnixepochFunction];
+        NSLog(@"");
         return YES;
     }
     else {
@@ -307,10 +308,10 @@ int SQLiteCallBackCollation(void *pApp, int lLen, const void *lData, int rLen, c
     return result == SQLITE_OK;
 }
  
-- (void)_addUnixepochFunction {
-    [self makeFunctionNamed:""
+- (BOOL)_addUnixepochFunction {
+    return [self makeFunctionNamed:"unixepoch"
                    argument:-1
-                        work:^id (YYDataBase *db, NSArray<SqlFuncParam *> *params, NSString **error) {
+                        work:^id (YYDatabase *db, NSArray<SqlFuncParam *> *params, NSString **error) {
         NSInteger n = params.count;
         if (n < 2) {
             *error = @"param invalid";

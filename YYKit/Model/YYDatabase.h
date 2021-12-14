@@ -1,5 +1,5 @@
 //
-//  YYDataBase.h
+//  YYDatabase.h
 //  YYKit <https://github.com/ibireme/YYKit>
 //
 //  Created by ibireme on 15/5/9.
@@ -36,7 +36,7 @@ typedef NS_ENUM(int, SqliteValueType) {
 + (instancetype)new NS_UNAVAILABLE;
 @end
 
-@interface YYDataBase : NSObject
+@interface YYDatabase : NSObject
 
 - (nullable NSArray<NSDictionary<NSString *, id> *>*)query:(NSString *)sql;
 
@@ -57,14 +57,14 @@ typedef NS_ENUM(int, SqliteValueType) {
                       work:(NSComparisonResult (^)(NSString *lhs, NSString *rhs))work;
 - (BOOL)makeFunctionNamed:(const char *)name
                  argument:(int)count
-                     work:(id _Nullable (^)(YYDataBase *db, NSArray<SqlFuncParam *> *params, NSString *_Nullable __autoreleasing* _Nonnull error))work;
+                     work:(id _Nullable (^)(YYDatabase *db, NSArray<SqlFuncParam *> *params, NSString *_Nullable __autoreleasing* _Nonnull error))work;
 
 - (NSString *)lastErrorMessage;
 
 - (instancetype)initWithPath:(NSString *)path NS_DESIGNATED_INITIALIZER;
 
-+ (instancetype)memory;
-+ (instancetype)temporary;
+@property (nonatomic, strong, class, readonly) YYDatabase *memory;
+@property (nonatomic, strong, class, readonly) YYDatabase *temporary; 
 
 - (instancetype)init NS_UNAVAILABLE;
 + (instancetype)new NS_UNAVAILABLE;

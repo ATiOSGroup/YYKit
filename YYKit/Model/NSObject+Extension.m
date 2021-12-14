@@ -2414,7 +2414,7 @@ NSArray *JSONArrayFromFilePath(NSString *path) {
 
 // MARK: - YYDataBase
 
-#import "YYDataBase.h"
+#import "YYDatabase.h"
 
 #import "NSString+YYModel.h"
 static force_inline NSString *YYTableNameFromClass(Class cls) {
@@ -2431,7 +2431,7 @@ static force_inline NSString *YYTmpTableNameFromClass(Class cls) {
 static NSMapTable *_cache;
 static dispatch_semaphore_t _lock;
 
-static YYDataBase *_YYGetGlobalDBFromCache(Class cls) {
+static YYDatabase *_YYGetGlobalDBFromCache(Class cls) {
     NSString *path = [cls db_filePath];
     if (!path.length) return nil;
     
@@ -2442,9 +2442,9 @@ static YYDataBase *_YYGetGlobalDBFromCache(Class cls) {
     });
     
     dispatch_semaphore_wait(_lock, DISPATCH_TIME_FOREVER);
-    YYDataBase *db = [_cache objectForKey:path];
+    YYDatabase *db = [_cache objectForKey:path];
     if (!db) {
-        db = [[YYDataBase alloc] initWithPath:path];
+        db = [[YYDatabase alloc] initWithPath:path];
         [_cache setObject:db forKey:path];
     }
     dispatch_semaphore_signal(_lock);
@@ -2761,7 +2761,7 @@ DBCondition db_day_is(const char *column, int day) {
 
 + (NSString *)db_version {
     if (![self _db_initializeIfNecessary]) return nil;
-    YYDataBase *db = _YYGetGlobalDBFromCache(self);
+    YYDatabase *db = _YYGetGlobalDBFromCache(self);
     NSString *tableName = [self db_tableName];
     NSArray *res = [db query:[NSString stringWithFormat:@"select version from t_master where name = '%@';", tableName]];
     return res.count ? res[0][@"version"] : nil;
@@ -2773,7 +2773,7 @@ DBCondition db_day_is(const char *column, int day) {
      
     BOOL res = YES;
     dispatch_semaphore_wait(_lock, DISPATCH_TIME_FOREVER);
-    YYDataBase *db = [_cache objectForKey:path];
+    YYDatabase *db = [_cache objectForKey:path];
     if (db)  {
         res = [db close];
         if (res) [_cache removeObjectForKey:path];
@@ -2828,7 +2828,7 @@ DBCondition db_day_is(const char *column, int day) {
     }];
 } 
 + (BOOL)db_updateSeqFromSequenceTable:(NSInteger)value {
-    YYDataBase *db = _YYGetGlobalDBFromCache(self);
+    YYDatabase *db = _YYGetGlobalDBFromCache(self);
     NSString *tableName = [self db_tableName];
     return [db execute:[NSString stringWithFormat:@"update sqlite_sequence set seq = %zu where name = '%@';", value, tableName]];
 }
@@ -2882,7 +2882,7 @@ DBCondition db_day_is(const char *column, int day) {
  
 
 + (BOOL)db_dropTable {
-    YYDataBase *db = _YYGetGlobalDBFromCache(self);
+    YYDatabase *db = _YYGetGlobalDBFromCache(self);
     NSString *tableName = [self db_tableName];
     NSMutableArray *sqls = [NSMutableArray arrayWithCapacity:16];
     [sqls addObject:[NSString stringWithFormat:@"drop table if exists %@;", tableName]];
@@ -2891,7 +2891,7 @@ DBCondition db_day_is(const char *column, int day) {
     return [db executesNoRollback:sqls];
 }
 + (BOOL)db_dropIndexTable {
-    YYDataBase *db = _YYGetGlobalDBFromCache(self);
+    YYDatabase *db = _YYGetGlobalDBFromCache(self);
     NSString *tableName = [self db_tableName];
     return [db execute:[NSString stringWithFormat:@"drop index if exists %@_index;", tableName]];
 }
@@ -2899,12 +2899,12 @@ DBCondition db_day_is(const char *column, int day) {
 
 + (BOOL)db_execute:(NSString *)sql {
     if (!sql.length) return NO;
-    YYDataBase *db = _YYGetGlobalDBFromCache(self);
+    YYDatabase *db = _YYGetGlobalDBFromCache(self);
     return [db execute:sql];
 }
 + (NSArray<NSDictionary<NSString *, id> *> *)db_query:(NSString *)sql {
     if (!sql.length) return nil;
-    YYDataBase *db = _YYGetGlobalDBFromCache(self);
+    YYDatabase *db = _YYGetGlobalDBFromCache(self);
     return [db query:sql];
 }
 
@@ -2927,7 +2927,7 @@ DBCondition db_day_is(const char *column, int day) {
 + (NSDictionary *)_db_selectRowWithPrimaryValue:(id)value {
     if (!value) return nil;
     __block id row = nil;
-    [self _db_initializeIfNecessaryWithBarrierSqls:^(NSString *tableName, NSString *primaryKey, YYDataBase *db, _YYModelMeta *meta) {
+    [self _db_initializeIfNecessaryWithBarrierSqls:^(NSString *tableName, NSString *primaryKey, YYDatabase *db, _YYModelMeta *meta) {
         
         NSString *colums = [[meta _dbColumnNames] componentsJoinedByString:@", "];
         
@@ -3001,9 +3001,9 @@ DBCondition db_day_is(const char *column, int day) {
 }
 
 
-+ (BOOL)_db_initializeIfNecessaryWithBarrierSqls:(void(^)(NSString *tableName, NSString *primaryKey, YYDataBase *db, _YYModelMeta *meta))block {
++ (BOOL)_db_initializeIfNecessaryWithBarrierSqls:(void(^)(NSString *tableName, NSString *primaryKey, YYDatabase *db, _YYModelMeta *meta))block {
     if (!block) return [self _db_initializeIfNecessaryWithAdditionalSqlMake:nil barrier:NO];
-    return [self _db_initializeIfNecessaryWithAdditionalSqlMake:^NSArray<NSString *> *(NSString *tableName, NSString *primaryKey, YYDataBase *db, _YYModelMeta *meta) {
+    return [self _db_initializeIfNecessaryWithAdditionalSqlMake:^NSArray<NSString *> *(NSString *tableName, NSString *primaryKey, YYDatabase *db, _YYModelMeta *meta) {
         block(tableName, primaryKey, db, meta);
         return nil;
     } barrier:YES];
@@ -3011,17 +3011,17 @@ DBCondition db_day_is(const char *column, int day) {
 
 + (BOOL)_db_initializeIfNecessaryWithSqls:(NSArray<NSString *>*(^)(NSString *tableName, NSString *primaryKey, _YYModelMeta *meta))block {
     if (!block) return [self _db_initializeIfNecessaryWithAdditionalSqlMake:nil barrier:NO];
-    return [self _db_initializeIfNecessaryWithAdditionalSqlMake:^NSArray<NSString *> *(NSString *tableName, NSString *primaryKey, YYDataBase *db, _YYModelMeta *meta) {
+    return [self _db_initializeIfNecessaryWithAdditionalSqlMake:^NSArray<NSString *> *(NSString *tableName, NSString *primaryKey, YYDatabase *db, _YYModelMeta *meta) {
         return block(tableName, primaryKey, meta);
     } barrier:NO];
 }
 + (BOOL)_db_initializeIfNecessary {
     return [self _db_initializeIfNecessaryWithAdditionalSqlMake:nil barrier:NO];
 }
-+ (BOOL)_db_initializeIfNecessaryWithAdditionalSqlMake:(NSArray<NSString *>*(^)(NSString *tableName, NSString *primaryKey, YYDataBase *db, _YYModelMeta *meta))block barrier:(BOOL)barrier {
++ (BOOL)_db_initializeIfNecessaryWithAdditionalSqlMake:(NSArray<NSString *>*(^)(NSString *tableName, NSString *primaryKey, YYDatabase *db, _YYModelMeta *meta))block barrier:(BOOL)barrier {
     
     Class cls = self;
-    YYDataBase *db = _YYGetGlobalDBFromCache(cls);
+    YYDatabase *db = _YYGetGlobalDBFromCache(cls);
     if (!db) return NO;
     
     _YYModelMeta *meta = [_YYModelMeta metaWithClass:cls];
@@ -3186,7 +3186,7 @@ DBCondition db_day_is(const char *column, int day) {
         }
     }
     if (!block) return [cls _db_initializeIfNecessaryWithAdditionalSqlMake:nil barrier:NO];
-    return [cls _db_initializeIfNecessaryWithAdditionalSqlMake:^NSArray<NSString *> *(NSString *tableName, NSString *primaryKey, YYDataBase *db, _YYModelMeta *meta) {
+    return [cls _db_initializeIfNecessaryWithAdditionalSqlMake:^NSArray<NSString *> *(NSString *tableName, NSString *primaryKey, YYDatabase *db, _YYModelMeta *meta) {
         NSMutableArray *sqls = [NSMutableArray arrayWithCapacity:count];
         block(sqls, tableName, primaryKey, meta);
         return sqls;

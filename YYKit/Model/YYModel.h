@@ -13,7 +13,7 @@
 #import "NSObject+YYModel.h"
 #import "NSObject+YYDatabase.h"
 #import "NSObject+YYCodable.h"
-#import "YYDataBase.h"
+#import "YYDatabase.h"
 
 
 #endif /* YYModel_h */

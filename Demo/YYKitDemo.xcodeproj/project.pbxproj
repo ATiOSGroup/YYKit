@@ -11,7 +11,7 @@
 		B61014CB274239350085E02D /* NSObject+Extension.m in Sources */ = {isa = PBXBuildFile; fileRef = B61014C6274239350085E02D /* NSObject+Extension.m */; };
 		B61014CC274239350085E02D /* YYClassInfo.m in Sources */ = {isa = PBXBuildFile; fileRef = B61014C7274239350085E02D /* YYClassInfo.m */; };
 		B61014CD274239350085E02D /* NSString+YYModel.m in Sources */ = {isa = PBXBuildFile; fileRef = B61014C8274239350085E02D /* NSString+YYModel.m */; };
-		B657F704276898B600AC9B74 /* YYDataBase.m in Sources */ = {isa = PBXBuildFile; fileRef = B657F703276898B600AC9B74 /* YYDataBase.m */; };
+		B657F704276898B600AC9B74 /* YYDatabase.m in Sources */ = {isa = PBXBuildFile; fileRef = B657F703276898B600AC9B74 /* YYDatabase.m */; };
 		D9067DF11B975D3900F346EB /* YYTextExampleHelper.m in Sources */ = {isa = PBXBuildFile; fileRef = D9067DF01B975D3900F346EB /* YYTextExampleHelper.m */; };
 		D9067DF41B9813B500F346EB /* YYTextEditExample.m in Sources */ = {isa = PBXBuildFile; fileRef = D9067DF31B9813B500F346EB /* YYTextEditExample.m */; };
 		D9067DF71B9856FF00F346EB /* YYTextMarkdownExample.m in Sources */ = {isa = PBXBuildFile; fileRef = D9067DF61B9856FF00F346EB /* YYTextMarkdownExample.m */; };
@@ -209,8 +209,8 @@
 		B61014C8274239350085E02D /* NSString+YYModel.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSString+YYModel.m"; sourceTree = "<group>"; };
 		B61014C9274239350085E02D /* NSObject+YYCodable.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSObject+YYCodable.h"; sourceTree = "<group>"; };
 		B61014CA274239350085E02D /* NSObject+YYModel.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSObject+YYModel.h"; sourceTree = "<group>"; };
-		B657F702276898B600AC9B74 /* YYDataBase.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = YYDataBase.h; sourceTree = "<group>"; };
-		B657F703276898B600AC9B74 /* YYDataBase.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = YYDataBase.m; sourceTree = "<group>"; };
+		B657F702276898B600AC9B74 /* YYDatabase.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = YYDatabase.h; sourceTree = "<group>"; };
+		B657F703276898B600AC9B74 /* YYDatabase.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = YYDatabase.m; sourceTree = "<group>"; };
 		D9067DEF1B975D3900F346EB /* YYTextExampleHelper.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = YYTextExampleHelper.h; sourceTree = "<group>"; };
 		D9067DF01B975D3900F346EB /* YYTextExampleHelper.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = YYTextExampleHelper.m; sourceTree = "<group>"; };
 		D9067DF21B9813B500F346EB /* YYTextEditExample.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = YYTextEditExample.h; sourceTree = "<group>"; };
@@ -563,8 +563,8 @@
 				B61014C2274239350085E02D /* YYClassInfo.h */,
 				B61014C7274239350085E02D /* YYClassInfo.m */,
 				B61014C5274239350085E02D /* YYModel.h */,
-				B657F702276898B600AC9B74 /* YYDataBase.h */,
-				B657F703276898B600AC9B74 /* YYDataBase.m */,
+				B657F702276898B600AC9B74 /* YYDatabase.h */,
+				B657F703276898B600AC9B74 /* YYDatabase.m */,
 			);
 			path = Model;
 			sourceTree = "<group>";
@@ -1290,7 +1290,7 @@
 				D9B260621BEE79370038C00A /* UIBezierPath+YYAdd.m in Sources */,
 				D9B2605E1BEE79370038C00A /* CALayer+YYAdd.m in Sources */,
 				D9B260761BEE79370038C00A /* UIImageView+YYWebImage.m in Sources */,
-				B657F704276898B600AC9B74 /* YYDataBase.m in Sources */,
+				B657F704276898B600AC9B74 /* YYDatabase.m in Sources */,
 				D97484D919CAAD2900F46DE1 /* YYAppDelegate.m in Sources */,
 				D943B48D19EC2BC100A9481E /* YYRootViewController.m in Sources */,
 				D9CC99EB1B8B528300A9466D /* YYImageProgressiveExample.m in Sources */,
