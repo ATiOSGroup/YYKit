@@ -2426,7 +2426,7 @@ static force_inline NSString *YYTableNameFromClass(Class cls) {
 }
 static force_inline NSString *YYTmpTableNameFromClass(Class cls) {
     return [NSString stringWithFormat:@"t_%@_tmp", NSStringFromClass(cls)];
-} 
+}
 
 static NSMapTable *_cache;
 static dispatch_semaphore_t _lock;
@@ -2919,7 +2919,9 @@ DBCondition db_day_is(const char *column, int day) {
 + (NSString *)db_lastErrorMessage {
     return _YYGetGlobalDBFromCache(self).lastErrorMessage;
 }
-
++ (id)db_handle {
+    return _YYGetGlobalDBFromCache(self);
+}
 // MARK: Private
 
 + (NSDictionary *)_db_selectRowWithPrimaryValue:(id)value {

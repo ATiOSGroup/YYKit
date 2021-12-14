@@ -17,13 +17,24 @@
 #import "sqlite3.h"
 #endif
 
+@implementation SqlFuncParam
+
+- (instancetype)initWithTyep:(SqliteValueType)type value:(id)value {
+    self = [super init];
+    _type = type;
+    _value = value;
+    return self;
+}
+
+@end
+
 @interface _SqlFuncBox : NSObject
 @end
 @implementation _SqlFuncBox {
     @package
     __unsafe_unretained YYDataBase *_db;
     int _argumentsCount;
-    id _Nullable (^_block)(YYDataBase *db, NSArray *params, NSString **error);
+    id _Nullable (^_block)(YYDataBase *db, NSArray<SqlFuncParam *> *params, NSString **error);
 }
 @end
 
@@ -35,6 +46,58 @@
 }
 @end
  
+
+void SQLiteCallBackFunction(sqlite3_context *context, int argc, sqlite3_value **argv) {
+    _SqlFuncBox *pApp = (__bridge _SqlFuncBox *)(sqlite3_user_data(context));
+    int count = argc;
+    NSMutableArray *params = [NSMutableArray arrayWithCapacity:count];
+    for (int i = 0; i < count; i++) {
+        id val = nil;
+        SqliteValueType type = sqlite3_value_type(argv[i]);
+        switch (type) {
+            case SqliteValueTypeNull: {
+                
+            } break;
+            case SqliteValueTypeText: {
+                const char *cString = (const char *)sqlite3_value_text(argv[i]);
+                if (cString) val = [NSString stringWithUTF8String:cString];
+            } break;
+            case SqliteValueTypeInteger: {
+                val = [NSNumber numberWithLongLong:sqlite3_value_int64(argv[i])];
+            } break;
+            case SqliteValueTypeFloat: {
+                val = [NSNumber numberWithDouble:sqlite3_value_double(argv[i])];
+            } break;
+            default: break;
+        }
+        if (val == nil) {
+            type = SqliteValueTypeNull;
+            val = [NSNull null];
+        }
+        [params addObject:[[SqlFuncParam alloc] initWithTyep:type value:val]];
+    }
+    
+    NSString *error = nil;
+    id res = pApp->_block(pApp->_db, params, &error);
+    if (error) {
+        sqlite3_result_error(context, [error UTF8String], -1);
+        return;
+    } else if (!res || res == [NSNull null]) {
+        sqlite3_result_null(context);
+    } else {
+        if ([res isKindOfClass:[NSNumber class]]) {
+            NSNumber *num = (NSNumber *)res;
+            if (strcmp([num objCType], @encode(float)) == 0 ||
+                strcmp([num objCType], @encode(double)) == 0) {
+                sqlite3_result_double(context, [num doubleValue]);
+            } else {
+                sqlite3_result_int64(context, [num longLongValue]);
+            }
+        } else if ([res isKindOfClass:[NSString class]]) {
+            sqlite3_result_text(context, [res UTF8String], -1, SQLITE_TRANSIENT);
+        }
+    }
+}
 
 @implementation YYDataBase {
     @package
@@ -67,60 +130,9 @@
     
     return self;
 }
-void SQLiteCallBackFunction(sqlite3_context *context, int argc, sqlite3_value **argv) {
-    _SqlFuncBox *pApp = (__bridge _SqlFuncBox *)(sqlite3_user_data(context));
-    int count = argc;
-    NSMutableArray *params = [NSMutableArray arrayWithCapacity:count];
-    for (int i = 0; i < count; i++) {
-        id val = nil;
-        SqliteValueType type = sqlite3_value_type(argv[i]);
-        switch (type) {
-            case SqliteValueTypeNull: {
-                
-            } break;
-            case SqliteValueTypeText: {
-                const char *cString = (const char *)sqlite3_value_text(argv[i]);
-                if (cString) val = [NSString stringWithUTF8String:cString];
-            } break;
-            case SqliteValueTypeInteger: {
-                val = [NSNumber numberWithLongLong:sqlite3_value_int64(argv[i])];
-            } break;
-            case SqliteValueTypeFloat: {
-                val = [NSNumber numberWithDouble:sqlite3_value_double(argv[i])];
-            } break;
-            default: break;
-        }
-        if (val == nil) {
-            type = SqliteValueTypeNull;
-            val = [NSNull null];
-        }
-        [params addObject:@{@"type": @(type), @"value": val}];
-    }
-    
-    NSString *error = nil;
-    id res = pApp->_block(pApp->_db, params, &error);
-    if (error) {
-        sqlite3_result_error(context, [error UTF8String], -1);
-        return;
-    } else if (!res || res == [NSNull null]) {
-        sqlite3_result_null(context);
-    } else {
-        if ([res isKindOfClass:[NSNumber class]]) {
-            NSNumber *num = (NSNumber *)res;
-            if (strcmp([num objCType], @encode(float)) == 0 ||
-                strcmp([num objCType], @encode(double)) == 0) {
-                sqlite3_result_double(context, [num doubleValue]);
-            } else {
-                sqlite3_result_int64(context, [num longLongValue]);
-            }
-        } else if ([res isKindOfClass:[NSString class]]) {
-            sqlite3_result_text(context, [res UTF8String], -1, SQLITE_TRANSIENT);
-        }
-    }
-}
 - (BOOL)makeFunctionNamed:(const char *)name
-                  argument:(int)count
-                      work:(id _Nullable (^)(YYDataBase *db, NSArray *params, NSString **error))work {
+                 argument:(int)count
+                     work:(id _Nullable (^)(YYDataBase * _Nonnull, NSArray<SqlFuncParam *> * _Nonnull, NSString * _Nullable __autoreleasing * _Nonnull))work {
     if (!work) return NO;
     _SqlFuncBox *box = [_SqlFuncBox new];
     box->_db = self;
@@ -296,25 +308,25 @@ int SQLiteCallBackCollation(void *pApp, int lLen, const void *lData, int rLen, c
 }
  
 - (void)_addUnixepochFunction {
-    [self makeFunctionNamed:"unixepoch"
-                    argument:-1
-                        work:^id (YYDataBase *db, NSArray *params, NSString **error) {
+    [self makeFunctionNamed:""
+                   argument:-1
+                        work:^id (YYDataBase *db, NSArray<SqlFuncParam *> *params, NSString **error) {
         NSInteger n = params.count;
         if (n < 2) {
             *error = @"param invalid";
             return nil;
         }
-        SqliteValueType type0 = [params[0][@"type"] intValue];
-        SqliteValueType type1 = [params[1][@"type"] intValue];
-        if ((type0 != SqliteValueTypeInteger &&
-             type0 != SqliteValueTypeFloat) ||
-            type1 != SqliteValueTypeText) {
+        SqlFuncParam *param0 = params[0];
+        SqlFuncParam *param1 = params[1];
+        if ((param0.type != SqliteValueTypeInteger &&
+             param0.type != SqliteValueTypeFloat) ||
+            param1.type != SqliteValueTypeText) {
             *error = @"param invalid";
             return nil;
         }
         NSString *sql = nil;
-        id ts = params[0][@"value"];
-        NSString *modifier = [params[1][@"value"] lowercaseString];
+        id ts = param0.value;
+        NSString *modifier = [param1.value lowercaseString];
         
         if ([modifier isEqualToString:@"start of year"]) {
             sql = [NSString stringWithFormat:@"select strftime('%%s', %@, 'unixepoch', 'localtime', 'start of year', 'utc') as result", ts];
@@ -331,9 +343,9 @@ int SQLiteCallBackCollation(void *pApp, int lLen, const void *lData, int rLen, c
         } else if ([modifier containsString:@"week"]) {
             NSString *delta = @"";
             if (n > 2) {
-                SqliteValueType type2 = [params[2][@"type"] intValue];
-                if (type2 == SqliteValueTypeInteger) {
-                    int val2 = [params[2][@"value"] intValue];
+                SqlFuncParam *param2 = params[2];
+                if (param2.type == SqliteValueTypeInteger) {
+                    int val2 = [param2.value intValue];
                     if (val2 > 0) {
                         delta = [NSString stringWithFormat:@" '+%d day',", val2];
                     } else if (val2 < 0) {
@@ -350,15 +362,15 @@ int SQLiteCallBackCollation(void *pApp, int lLen, const void *lData, int rLen, c
                 return nil;
             }
         } else if ([modifier containsString:@"hour"]) {
-            NSArray<NSMutableDictionary *> *rows = [db query:[NSString stringWithFormat:@"select strftime('%%H', %@, 'unixepoch', 'localtime') as result", ts]];
+            NSArray<NSDictionary *> *rows = [db query:[NSString stringWithFormat:@"select strftime('%%H', %@, 'unixepoch', 'localtime') as result", ts]];
             if (!rows.count) return nil;
             int hour = [rows[0][@"result"] intValue];
             
             int step = 1;
             if (n > 2) {
-                SqliteValueType type2 = [params[2][@"type"] intValue];
-                if (type2 == SqliteValueTypeInteger) {
-                    int val2 = [params[2][@"value"] intValue];
+                SqlFuncParam *param2 = params[2];
+                if (param2.type == SqliteValueTypeInteger) {
+                    int val2 = [param2.value intValue];
                     if (val2 <= 0 || val2 > 23) {
                         *error = @"param invalid";
                         return nil;
@@ -387,8 +399,9 @@ int SQLiteCallBackCollation(void *pApp, int lLen, const void *lData, int rLen, c
                 return nil;
             }
             int step = 0;
-            if ([params[2][@"type"] intValue] == SqliteValueTypeInteger) {
-                int val2 = [params[2][@"value"] intValue];
+            SqlFuncParam *param2 = params[2];
+            if (param2.type == SqliteValueTypeInteger) {
+                int val2 = [param2.value intValue];
                 if (val2 <= 0) {
                     *error = @"param invalid";
                     return nil;
@@ -399,7 +412,7 @@ int SQLiteCallBackCollation(void *pApp, int lLen, const void *lData, int rLen, c
                 return nil;
             }
             
-            NSArray<NSMutableDictionary *> *rows = [db query:[NSString stringWithFormat:@"select strftime('%%H:%%M', %@, 'unixepoch', 'localtime') as result", ts]];
+            NSArray<NSDictionary *> *rows = [db query:[NSString stringWithFormat:@"select strftime('%%H:%%M', %@, 'unixepoch', 'localtime') as result", ts]];
             if (!rows.count) return nil;
             NSArray *cmps = [rows[0][@"result"] componentsSeparatedByString:@":"];
             int min = [cmps[0] intValue] * 60 + [cmps[1] intValue];
@@ -421,7 +434,7 @@ int SQLiteCallBackCollation(void *pApp, int lLen, const void *lData, int rLen, c
             return nil;
         }
         
-        NSArray<NSMutableDictionary *> *rows = [db query:sql];
+        NSArray<NSDictionary *> *rows = [db query:sql];
         if (!rows.count) return nil;
         return rows[0][@"result"];
     }];

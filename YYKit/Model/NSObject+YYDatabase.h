@@ -211,6 +211,7 @@ FOUNDATION_EXTERN ColumnName DBColumnInsertTimestamp;
 FOUNDATION_EXTERN ColumnName DBColumnDefaultPK;
 FOUNDATION_EXTERN TableName  DBDefaultTableName;
 
+@class YYDataBase;
 /*
  数据库设计说明，
  内部会为每个表增加 c_insertTimestamp(插入时间戳) 和 c_insertTime(插入时间) 字段，用以调试
@@ -264,6 +265,8 @@ FOUNDATION_EXTERN TableName  DBDefaultTableName;
 + (NSString *)db_createTableSql;
 
 + (NSString *)db_lastErrorMessage;
+
++ (YYDataBase *)db_handle;
 @end
 
 @interface NSArray (YYDataBase)

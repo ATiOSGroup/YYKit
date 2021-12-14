@@ -27,6 +27,14 @@ typedef NS_ENUM(int, SqliteValueType) {
     SqliteValueTypeNull    = 5
 };
 
+@interface SqlFuncParam : NSObject
+
+@property (nonatomic, assign, readonly) SqliteValueType type;
+@property (nonatomic, strong, readonly) id value;
+
+- (instancetype)init NS_UNAVAILABLE;
++ (instancetype)new NS_UNAVAILABLE;
+@end
 
 @interface YYDataBase : NSObject
 
@@ -49,7 +57,7 @@ typedef NS_ENUM(int, SqliteValueType) {
                       work:(NSComparisonResult (^)(NSString *lhs, NSString *rhs))work;
 - (BOOL)makeFunctionNamed:(const char *)name
                  argument:(int)count
-                     work:(id _Nullable (^)(YYDataBase *db, NSArray *params, NSString *_Nullable __autoreleasing* _Nonnull error))work;
+                     work:(id _Nullable (^)(YYDataBase *db, NSArray<SqlFuncParam *> *params, NSString *_Nullable __autoreleasing* _Nonnull error))work;
 
 - (NSString *)lastErrorMessage;
 
