@@ -129,7 +129,7 @@ NS_ASSUME_NONNULL_BEGIN
  
  @return Whether succeed.
  */
-- (BOOL)setPropertiesWithDictionary:(NSDictionary *)dic;
+- (BOOL)setPropertiesValuesWithDictionary:(NSDictionary *)dic;
 
 /**
  Generate a json object from the receiver's properties.
@@ -173,7 +173,6 @@ NS_ASSUME_NONNULL_BEGIN
 - (nullable id)modelCopy;
 
 
-
 /**
  Get a hash code with the receiver's properties.
  
@@ -188,14 +187,7 @@ NS_ASSUME_NONNULL_BEGIN
  
  @return `YES` if the reciever is equal to the object, otherwise `NO`.
  */
-- (BOOL)modelIsEqual:(id)model;
-
-/**
- Description method for debugging purposes based on properties.
- 
- @return A string that describes the contents of the receiver.
- */
-- (NSString *)modelDescription;
+- (BOOL)modelIsEqual:(id)model; 
 
 
 + (nullable NSArray *)modelArrayWithKeyValues:(id)json;
@@ -357,9 +349,6 @@ FOUNDATION_EXTERN NSArray *JSONArrayFromFilePath(NSString *path);
 + (nullable Class)modelCustomClassForDictionary:(NSDictionary *)dictionary;
 
 @end 
-
-
-
 
 
 #define YYCopyImplementation \

@@ -16,36 +16,27 @@
 #import "NSObject+YYDatabase.h"
 #import "NSObject+YYCodable.h"
  
-
 ColumnName DBColumnInsertTime = @"c_insertTime";
 ColumnName DBColumnInsertTimestamp = @"c_insertTimestamp";
 ColumnName DBColumnDefaultPK = @"rowid";
 TableName  DBDefaultTableName = @"common";
 
-
 @interface NSArray<__covariant ObjectType> (__DBAdd)
 - (NSArray *)_db_map:(id _Nullable (^)(ObjectType obj, NSUInteger idx))block;
 @end
-
 @implementation NSArray (__DBAdd)
-
-- (NSArray *)_db_map:(id  _Nullable (^)(id _Nonnull, NSUInteger))block
-{
+- (NSArray *)_db_map:(id _Nullable (^)(id _Nonnull, NSUInteger))block {
     NSParameterAssert(block != nil);
-    
     NSMutableArray *result = [NSMutableArray arrayWithCapacity:self.count];
-    
     [self enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
         id value = block(obj, idx);
         if (value != nil) [result addObject:value];
     }];
-    
     return result;
 }
 @end
 
 @interface NSData (__DBAdd)
-
 @end
 @implementation NSData (__DBAdd)
 - (NSString *)_db_columnString {
@@ -56,7 +47,6 @@ TableName  DBDefaultTableName = @"common";
     if (!str.length) return nil;
     return [[NSData alloc] initWithBase64EncodedString:str options:NSDataBase64DecodingIgnoreUnknownCharacters];
 }
-
 @end
 
 #define force_inline __inline__ __attribute__((always_inline))
@@ -84,8 +74,6 @@ typedef NS_ENUM (NSUInteger, YYEncodingNSType) {
     YYEncodingTypeNSSet,
     YYEncodingTypeNSMutableSet,
 };
-
-
 
 typedef NS_ENUM(NSInteger, DBColumnType) {
     DBColumnTypeUnknown = 0,
@@ -353,8 +341,6 @@ static force_inline Class YYNSBlockClass() {
     return cls; // current is "NSBlock"
 }
 
-
-
 /**
  Get the ISO date formatter.
  
@@ -385,10 +371,10 @@ static force_inline NSString *_DBExtraDebugColumns() {
 static force_inline id YYValueForKeyPath(__unsafe_unretained NSDictionary *dic, __unsafe_unretained NSArray *keyPaths) {
     id value = dic;
     for (NSString *keyPath in keyPaths) {
+        if (![value isKindOfClass:[NSDictionary class]]) return nil;
         NSUInteger left = [keyPath rangeOfString:@"["].location;
         if (left != NSNotFound) {
             NSString *sub = [keyPath substringToIndex:left];
-            if (![value isKindOfClass:[NSDictionary class]]) return nil;
             value = value[sub];
             if (![value isKindOfClass:[NSArray class]]) return nil;
             NSUInteger right = [keyPath rangeOfString:@"]"].location;
@@ -400,7 +386,6 @@ static force_inline id YYValueForKeyPath(__unsafe_unretained NSDictionary *dic, 
             if (idx < array.count) value = array[idx];
             else return nil;
         } else {
-            if (![value isKindOfClass:[NSDictionary class]]) return nil;
             value = value[keyPath];
         }
     }
@@ -423,9 +408,6 @@ static force_inline id YYValueForMultiKeys(__unsafe_unretained NSDictionary *dic
     }
     return value;
 }
-
-
-
 
 /// A property info in object model.
 @interface _YYModelPropertyMeta : NSObject {
@@ -644,9 +626,10 @@ static force_inline id YYValueForMultiKeys(__unsafe_unretained NSDictionary *dic
     while (curClassInfo && curClassInfo.superCls != nil) { // recursive parse super class, but ignore root class (NSObject/NSProxy)
         for (YYClassPropertyInfo *propertyInfo in curClassInfo.propertyInfos.allValues) {
             if (!propertyInfo.name) continue;
-            _YYModelPropertyMeta *meta = [_YYModelPropertyMeta metaWithClassInfo:classInfo
-                                                                    propertyInfo:propertyInfo
-                                                                         generic:genericMapper[propertyInfo.name]];
+            _YYModelPropertyMeta *meta = [_YYModelPropertyMeta
+                                          metaWithClassInfo:classInfo
+                                          propertyInfo:propertyInfo
+                                          generic:genericMapper[propertyInfo.name]];
             if (!meta || !meta->_name) continue;
             if (!meta->_getter || !meta->_setter) continue;
             if (allPropertyMetas[meta->_name]) continue;
@@ -692,7 +675,6 @@ static force_inline id YYValueForMultiKeys(__unsafe_unretained NSDictionary *dic
             }
             
             if (![dbBlacklist containsObject:name]) {
-                
                 DBColumnType type = DBColumnTypeUnknown;
                 if (meta->_nsType) {
                     type = YYDBTypeFromNSType(meta->_nsType);
@@ -1187,7 +1169,7 @@ static void ModelSetValueForProperty(__unsafe_unretained id model,
                                 }
                                 /// 发生递归调用
                                 NSObject *newOne = [cls new];
-                                [newOne setPropertiesWithDictionary:one];
+                                [newOne setPropertiesValuesWithDictionary:one];
                                 if (newOne) [objectArr addObject:newOne];
                             }
                         }
@@ -1223,7 +1205,7 @@ static void ModelSetValueForProperty(__unsafe_unretained id model,
                                     if (!cls) cls = meta->_genericCls; // for xcode code coverage
                                 }
                                 NSObject *newOne = [cls new];
-                                [newOne setPropertiesWithDictionary:(id)oneValue];
+                                [newOne setPropertiesValuesWithDictionary:(id)oneValue];
                                 if (newOne) dic[oneKey] = newOne;
                             }
                         }];
@@ -1258,7 +1240,7 @@ static void ModelSetValueForProperty(__unsafe_unretained id model,
                                     if (!cls) cls = meta->_genericCls; // for xcode code coverage
                                 }
                                 NSObject *newOne = [cls new];
-                                [newOne setPropertiesWithDictionary:one];
+                                [newOne setPropertiesValuesWithDictionary:one];
                                 if (newOne) [set addObject:newOne];
                             }
                         }
@@ -1291,7 +1273,7 @@ static void ModelSetValueForProperty(__unsafe_unretained id model,
                         one = ((id (*)(id, SEL))(void *) objc_msgSend)((id)model, meta->_getter);
                     }
                     if (one) {
-                        [one setPropertiesWithDictionary:value];
+                        [one setPropertiesValuesWithDictionary:value];
                     } else {
                         Class cls = meta->_cls;
                         if (meta->_hasCustomClassFromDictionary) {
@@ -1299,7 +1281,7 @@ static void ModelSetValueForProperty(__unsafe_unretained id model,
                             if (!cls) cls = meta->_genericCls; // for xcode code coverage
                         }
                         one = [cls new];
-                        [one setPropertiesWithDictionary:value];
+                        [one setPropertiesValuesWithDictionary:value];
                         ((void (*)(id, SEL, id))(void *) objc_msgSend)((id)model, meta->_setter, (id)one);
                     }
                 }
@@ -1772,156 +1754,9 @@ static id DBModelToObjectRecursive(NSObject *model) {
     
     return result;
 }
-
-/// Add indent to string (exclude first line)
-static NSMutableString *ModelDescriptionAddIndent(NSMutableString *desc, NSUInteger indent) {
-    for (NSUInteger i = 0, max = desc.length; i < max; i++) {
-        unichar c = [desc characterAtIndex:i];
-        if (c == '\n') {
-            for (NSUInteger j = 0; j < indent; j++) {
-                [desc insertString:@"    " atIndex:i + 1];
-            }
-            i += indent * 4;
-            max += indent * 4;
-        }
-    }
-    return desc;
-}
-
-/// Generaate a description string
-static NSString *ModelDescription(NSObject *model) {
-    static const int kDescMaxLength = 100;
-    if (!model) return @"<nil>";
-    if (model == (id)kCFNull) return @"<null>";
-    if (![model isKindOfClass:[NSObject class]]) return [NSString stringWithFormat:@"%@",model];
-    
-    
-    _YYModelMeta *modelMeta = [_YYModelMeta metaWithClass:model.class];
-    switch (modelMeta->_nsType) {
-        case YYEncodingTypeNSString: case YYEncodingTypeNSMutableString: {
-            return [NSString stringWithFormat:@"\"%@\"",model];
-        }
-            
-        case YYEncodingTypeNSValue:
-        case YYEncodingTypeNSData: case YYEncodingTypeNSMutableData: {
-            NSString *tmp = model.description;
-            if (tmp.length > kDescMaxLength) {
-                tmp = [tmp substringToIndex:kDescMaxLength];
-                tmp = [tmp stringByAppendingString:@"..."];
-            }
-            return tmp;
-        }
-            
-        case YYEncodingTypeNSNumber:
-        case YYEncodingTypeNSDecimalNumber:
-        case YYEncodingTypeNSDate:
-        case YYEncodingTypeNSURL: {
-            return [NSString stringWithFormat:@"%@",model];
-        }
-            
-        case YYEncodingTypeNSSet: case YYEncodingTypeNSMutableSet: {
-            model = ((NSSet *)model).allObjects;
-        } // no break
-            
-        case YYEncodingTypeNSArray: case YYEncodingTypeNSMutableArray: {
-            NSArray *array = (id)model;
-            NSMutableString *desc = [NSMutableString new];
-            if (array.count == 0) {
-                return [desc stringByAppendingString:@"[]"];
-            } else {
-                [desc appendFormat:@"[\n"];
-                for (NSUInteger i = 0, max = array.count; i < max; i++) {
-                    NSObject *obj = array[i];
-                    [desc appendString:@"    "];
-                    [desc appendString:ModelDescriptionAddIndent(ModelDescription(obj).mutableCopy, 1)];
-                    [desc appendString:(i + 1 == max) ? @"\n" : @";\n"];
-                }
-                [desc appendString:@"]"];
-                return desc;
-            }
-        }
-        case YYEncodingTypeNSDictionary: case YYEncodingTypeNSMutableDictionary: {
-            NSDictionary *dic = (id)model;
-            NSMutableString *desc = [NSMutableString new];
-            if (dic.count == 0) {
-                return [desc stringByAppendingString:@"{}"];
-            } else {
-                NSArray *keys = dic.allKeys;
-                
-                [desc appendFormat:@"{\n"];
-                for (NSUInteger i = 0, max = keys.count; i < max; i++) {
-                    NSString *key = keys[i];
-                    NSObject *value = dic[key];
-                    [desc appendString:@"    "];
-                    [desc appendFormat:@"%@ = %@",key, ModelDescriptionAddIndent(ModelDescription(value).mutableCopy, 1)];
-                    [desc appendString:(i + 1 == max) ? @"\n" : @";\n"];
-                }
-                [desc appendString:@"}"];
-            }
-            return desc;
-        }
-            
-        default: {
-            NSMutableString *desc = [NSMutableString new];
-            [desc appendFormat:@"<%@: %p>", model.class, model];
-            if (modelMeta->_allPropertyMetas.count == 0) return desc;
-            
-            // sort property names
-            NSArray *properties = modelMeta->_allPropertyMetas;
-            
-            [desc appendFormat:@" {\n"];
-            for (NSUInteger i = 0, max = properties.count; i < max; i++) {
-                _YYModelPropertyMeta *property = properties[i];
-                NSString *propertyDesc;
-                if (property->_isCNumber) {
-                    NSNumber *num = ModelCreateNumberFromProperty(model, property);
-                    propertyDesc = num.stringValue;
-                } else {
-                    switch (property->_type & YYEncodingTypeMask) {
-                        case YYEncodingTypeObject: {
-                            id v = ((id (*)(id, SEL))(void *) objc_msgSend)((id)model, property->_getter);
-                            propertyDesc = ModelDescription(v);
-                            if (!propertyDesc) propertyDesc = @"<nil>";
-                        } break;
-                        case YYEncodingTypeClass: {
-                            id v = ((id (*)(id, SEL))(void *) objc_msgSend)((id)model, property->_getter);
-                            propertyDesc = ((NSObject *)v).description;
-                            if (!propertyDesc) propertyDesc = @"<nil>";
-                        } break;
-                        case YYEncodingTypeSEL: {
-                            SEL sel = ((SEL (*)(id, SEL))(void *) objc_msgSend)((id)model, property->_getter);
-                            if (sel) propertyDesc = NSStringFromSelector(sel);
-                            else propertyDesc = @"<NULL>";
-                        } break;
-                        case YYEncodingTypeBlock: {
-                            id block = ((id (*)(id, SEL))(void *) objc_msgSend)((id)model, property->_getter);
-                            propertyDesc = block ? ((NSObject *)block).description : @"<nil>";
-                        } break;
-                        case YYEncodingTypeCArray: case YYEncodingTypeCString: case YYEncodingTypePointer: {
-                            void *pointer = ((void* (*)(id, SEL))(void *) objc_msgSend)((id)model, property->_getter);
-                            propertyDesc = [NSString stringWithFormat:@"%p",pointer];
-                        } break;
-                        case YYEncodingTypeStruct: case YYEncodingTypeUnion: {
-                            NSValue *value = [model valueForKey:property->_name];
-                            propertyDesc = value ? value.description : @"{unknown}";
-                        } break;
-                        default: propertyDesc = @"<unknown>";
-                    }
-                }
-                
-                propertyDesc = ModelDescriptionAddIndent(propertyDesc.mutableCopy, 1);
-                [desc appendFormat:@"    %@ = %@",property->_name, propertyDesc];
-                [desc appendString:(i + 1 == max) ? @"\n" : @";\n"];
-            }
-            [desc appendFormat:@"}"];
-            return desc;
-        }
-    }
-}
-
+ 
 
 @implementation NSObject (YYModel)
-
 
 + (instancetype)modelWithJSON:(id)json {
     NSDictionary *dic = YYDictionaryFromJSON(json);
@@ -1939,7 +1774,7 @@ static NSString *ModelDescription(NSObject *model) {
     }
     
     NSObject *one = [cls new];
-    if ([one setPropertiesWithDictionary:dictionary]) return one;
+    if ([one setPropertiesValuesWithDictionary:dictionary]) return one;
     return nil;
 }
 
@@ -1956,10 +1791,10 @@ static NSString *ModelDescription(NSObject *model) {
 
 - (BOOL)setPropertiesValuesWithJSON:(id)json {
     NSDictionary *dic = YYDictionaryFromJSON(json);
-    return [self setPropertiesWithDictionary:dic];
+    return [self setPropertiesValuesWithDictionary:dic];
 }
 
-- (BOOL)setPropertiesWithDictionary:(NSDictionary *)dic {
+- (BOOL)setPropertiesValuesWithDictionary:(NSDictionary *)dic {
     if (!dic || dic == (id)kCFNull) return NO;
     if (![dic isKindOfClass:[NSDictionary class]]) return NO;
     
@@ -2013,13 +1848,6 @@ static NSString *ModelDescription(NSObject *model) {
 
 
 - (id)modelToJSONObject {
-    /*
-     Apple said:
-     The top level object is an NSArray or NSDictionary.
-     All objects are instances of NSString, NSNumber, NSArray, NSDictionary, or NSNull.
-     All dictionary keys are instances of NSString.
-     Numbers are not NaN or infinity.
-     */
     id jsonObject = ModelToJSONObjectRecursive(self);
     if ([jsonObject isKindOfClass:[NSArray class]]) return jsonObject;
     if ([jsonObject isKindOfClass:[NSDictionary class]]) return jsonObject;
@@ -2117,8 +1945,6 @@ static NSString *ModelDescription(NSObject *model) {
     return one;
 }
 
-
-
 - (NSUInteger)modelHash {
     if (self == (id)kCFNull) return [self hash];
     _YYModelMeta *modelMeta = [_YYModelMeta metaWithClass:self.class];
@@ -2151,10 +1977,6 @@ static NSString *ModelDescription(NSObject *model) {
         if (![this isEqual:that]) return NO;
     }
     return YES;
-}
-
-- (NSString *)modelDescription {
-    return ModelDescription(self);
 }
 
 + (NSArray *)modelArrayWithKeyValues:(id)json {
@@ -2198,12 +2020,11 @@ static NSString *ModelDescription(NSObject *model) {
     [[NSFileManager defaultManager]createDirectoryAtPath:[path stringByDeletingLastPathComponent] withIntermediateDirectories:YES attributes:nil error:nil];
     NSString *fileType = path.pathExtension;
     if ([fileType.lowercaseString isEqualToString:@"json"]) {
-//        NSData *data = [NSJSONSerialization dataWithJSONObject:dict options:0 error:NULL];
-//        return [data writeToFile:path atomically:YES];
-        
         NSOutputStream *outStream = [[NSOutputStream alloc] initToFileAtPath:path append:NO];
         [outStream open];
-        return [NSJSONSerialization writeJSONObject:dict toStream:outStream options:NSJSONWritingPrettyPrinted error:NULL];
+        BOOL result = [NSJSONSerialization writeJSONObject:dict toStream:outStream options:NSJSONWritingPrettyPrinted error:NULL];
+        [outStream close];
+        return result;
     }
     return [dict writeToFile:path atomically:YES];
 }
@@ -2232,14 +2053,10 @@ NSArray *JSONArrayFromFilePath(NSString *path) {
     return YYArrayFromJSON([NSData dataWithContentsOfFile:path]);
 }
 
-#define kCacheDirectory NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES).firstObject
-#define kDocDirectory NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject
-
 // MARK: - Coding
 
 @implementation NSObject (YYCodable)
 
- 
 - (BOOL)cd_archive {
     NSString *path = [[self class] cd_filePath];
 #pragma clang diagnostic push
@@ -2256,16 +2073,17 @@ NSArray *JSONArrayFromFilePath(NSString *path) {
     
 }
 + (NSString *)cd_filePath {
-    //    NSString *dir = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject stringByAppendingPathComponent:@"/archive/"];
-    //    NSString *dir = @"/Users/liyang/Desktop/Titan/datas/archive/";
-    NSString *dir = @"/Users/liyang/Desktop/Programe/Exercise/2020/09/archive/";
+    NSString *dir = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES)[0] stringByAppendingString:@"/archive/"];
     NSString *path = nil;
     if ([self respondsToSelector:@selector(cd_filePathWithSuggestDirectory:)]) {
         path = [(id<YYCodeable>)self cd_filePathWithSuggestDirectory:dir];
     } else {
         path = [dir stringByAppendingFormat:@"%@.data", NSStringFromClass(self)];
     }
-    [[NSFileManager defaultManager] createDirectoryAtPath:[path stringByDeletingLastPathComponent] withIntermediateDirectories:YES attributes:nil error:NULL];
+    NSFileManager *manager = [NSFileManager defaultManager];
+    if (![[NSFileManager defaultManager] fileExistsAtPath:path]) {
+        [manager createDirectoryAtPath:[path stringByDeletingLastPathComponent] withIntermediateDirectories:YES attributes:nil error:NULL];
+    }
     return path;
 }
 + (BOOL)cd_remove {
