@@ -146,25 +146,45 @@ typedef NSString * const TableName;
 typedef ColumnName NewColumnName;
 typedef ColumnName OldColumnName;
 
+///
+typedef NS_ENUM(NSInteger, ForeignKeyAction) {
+    //:默认的,表示没有什么行为.
+    nothing = 0,
+    //:当有一个child关联到parent时,禁止delete或update parent
+    prohibit,
+    /// :当parent被delete或update时,child的的关联字段被置为null(如果字段有not null,就出错)
+    setNULL,
+    /// :类似于SET NULL (是不是设置默认值?没有试过)
+    setDefault,
+    /**
+     :将实施在parent上的删除或更新操作,传播给你吧与之关联的child上.
+     对于 ON DELETE CASCADE, 同被删除的父表中的行 相关联的子表中的每1行,也会被删除.
+     对于ON UPDATE CASCADE, 存储在子表中的每1行, 对应的字段的值会被自动修改成同新的父键匹配
+     */
+    cascade
+};
+
 @interface ColumnConstraintWorker : NSObject
 
 @property (nonatomic, copy, readonly) ColumnConstraintWorker * (^notnull)(void);
 
+// 主键字段默认包含 not null 和 unique 两个约束
 @property (nonatomic, copy, readonly) ColumnConstraintWorker * (^primaryKey)(void);
 /// 只能用在 integer 字段上
 @property (nonatomic, copy, readonly) ColumnConstraintWorker * (^autoincrement)(void);
 @property (nonatomic, copy, readonly) ColumnConstraintWorker * (^unique)(void);
-
-@property (nonatomic, copy, readonly) ColumnConstraintWorker *(^defaulte)(id value);
-/// 被参照的键 column 必须有唯一约束或是主键
-@property (nonatomic, copy, readonly) ColumnConstraintWorker * (^foreignRef)(TableName tableName, ColumnName column);
-
 /*
+ https://www.runoob.com/sqlite/sqlite-index.html
  如果是检索有大量重复数据的字段，不适合建立索引，反而会导致检索速度变慢，因为扫描索引节点的速度比全表扫描要慢
  */
 /// 创建索引
 @property (nonatomic, copy, readonly) ColumnConstraintWorker * (^uniqueIndex)(void);
 @property (nonatomic, copy, readonly) ColumnConstraintWorker * (^index)(void);
+
+@property (nonatomic, copy, readonly) ColumnConstraintWorker *(^defaulte)(id value);
+/// 被参照的键 column 必须有唯一约束或是主键
+@property (nonatomic, copy, readonly) ColumnConstraintWorker * (^foreignRef)(TableName tableName, ColumnName column, ForeignKeyAction onDelete, ForeignKeyAction onUpdate);
+
 
 @end
 
@@ -234,13 +254,12 @@ FOUNDATION_EXTERN TableName  DBDefaultTableName;
 - (BOOL)db_insert;
 - (BOOL)db_insertOrReplace;
  
+// 使用下面四个方法，必须指定主键，应为内部是根据主键更新的
 - (BOOL)db_update;
 /// 只更新 columns字段 多个字段用,隔开
 - (BOOL)db_updateColumnsInString:(NSString *)columns;
 /// 更新 除exclude外的字段 多个字段用,隔开
 - (BOOL)db_updateExcludeColumnInString:(NSString *)exclude;
-/// update sqlite_sequence set seq = 0 where name = 't_WOrder';
-+ (BOOL)db_updateSeqFromSequenceTable:(NSInteger)value;
 
 - (BOOL)db_delete;
 + (BOOL)db_deleteWithPrimaryValue:(id)primaryValue;

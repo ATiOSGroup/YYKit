@@ -51,10 +51,6 @@ TableName  DBDefaultTableName = @"common";
 
 #define force_inline __inline__ __attribute__((always_inline))
 
-static force_inline NSString *DBEscapeColumnValue(NSString *columnValue) {
-    return [columnValue stringByReplacingOccurrencesOfString:@"'" withString:@"''"];
-}
-
 /// Foundation Class Type
 typedef NS_ENUM (NSUInteger, YYEncodingNSType) {
     YYEncodingTypeNSUnknown = 0,
@@ -75,6 +71,9 @@ typedef NS_ENUM (NSUInteger, YYEncodingNSType) {
     YYEncodingTypeNSMutableSet,
 };
 
+static force_inline NSString *DBEscapeColumnValue(NSString *columnValue) {
+    return [columnValue stringByReplacingOccurrencesOfString:@"'" withString:@"''"];
+}
 typedef NS_ENUM(NSInteger, DBColumnType) {
     DBColumnTypeUnknown = 0,
     DBColumnTypeInterger,
@@ -392,7 +391,6 @@ static force_inline id YYValueForKeyPath(__unsafe_unretained NSDictionary *dic, 
     return value;
 }
 
-
 /// Get the value with multi key (or key path) from dictionary
 /// The dic should be NSDictionary
 static force_inline id YYValueForMultiKeys(__unsafe_unretained NSDictionary *dic, __unsafe_unretained NSArray *multiKeys) {
@@ -416,46 +414,30 @@ static force_inline id YYValueForMultiKeys(__unsafe_unretained NSDictionary *dic
     YYEncodingType _type;        ///< property's type
     YYEncodingNSType _nsType;    ///< property's Foundation type
     BOOL _isCNumber;             ///< is c number type
-    Class _cls;                  ///< property's class, or nil
-    Class _genericCls;           ///< container's generic class, or nil if threr's no generic class
+    Class _cls; ///< 属性类型，
+    Class _genericCls; ///< 如果是容器类型，是容器类型内元素的类型，如果不是容器类型为nil。
     SEL _getter;                 ///< getter, or nil if the instances cannot respond
     SEL _setter;                 ///< setter, or nil if the instances cannot respond
     BOOL _isKVCCompatible;       ///< YES if it can access with key-value coding
     BOOL _isStructAvailableForKeyedArchiver; ///< YES if the struct can encoded with keyed archiver/unarchiver
     BOOL _hasCustomClassFromDictionary; ///< class/generic class implements +modelCustomClassForDictionary:
     
-    /*
-     property->key:       _mappedToKey:key     _mappedToKeyPath:nil            _mappedToKeyArray:nil
-     property->keyPath:   _mappedToKey:keyPath _mappedToKeyPath:keyPath(array) _mappedToKeyArray:nil
-     property->keys:      _mappedToKey:keys[0] _mappedToKeyPath:nil/keyPath    _mappedToKeyArray:keys(array)
-     */
-    NSString *_mappedToKey;      ///< the key mapped to
-    NSArray *_mappedToKeyPath;   ///< the key path mapped to (nil if the name is not key path)
-    NSArray *_mappedToKeyArray;  ///< the key(NSString) or keyPath(NSArray) array (nil if not mapped to multiple keys)
+    NSString *_mappedToKey; ///< 表明该属性取数据源中_mappedToKey对应的value的值。
+    NSArray *_mappedToKeyPath;///< 表明该属性取数据源中_mappedToKeyPath对应路径的value值，如果为nil说明没有关键路径
+    NSArray *_mappedToKeyArray;///< key或者keyPath的数组，表明可从多个key中取值。
     YYClassPropertyInfo *_info;  ///< property's info
-    _YYModelPropertyMeta *_next; ///< next meta if there are multiple properties mapped to the same key.
+    _YYModelPropertyMeta *_next;///< 下一个元数据，如果有多个属性映射到同一个键。
 }
 @end
 
 @implementation _YYModelPropertyMeta
 + (instancetype)metaWithClassInfo:(YYClassInfo *)classInfo propertyInfo:(YYClassPropertyInfo *)propertyInfo generic:(Class)generic {
     
-    // support pseudo generic class with protocol name
-    if (!generic && propertyInfo.protocols) {
-        for (NSString *protocol in propertyInfo.protocols) {
-            Class cls = objc_getClass(protocol.UTF8String);
-            if (cls) {
-                generic = cls;
-                break;
-            }
-        }
-    }
-    
     _YYModelPropertyMeta *meta = [self new];
-    meta->_name = propertyInfo.name;
-    meta->_type = propertyInfo.type;
     meta->_info = propertyInfo;
     meta->_genericCls = generic;
+    meta->_name = propertyInfo.name;
+    meta->_type = propertyInfo.type;
     
     if ((meta->_type & YYEncodingTypeMask) == YYEncodingTypeObject) {
         meta->_nsType = YYClassGetNSType(propertyInfo.cls);
@@ -486,6 +468,7 @@ static force_inline id YYValueForMultiKeys(__unsafe_unretained NSDictionary *dic
             [set addObject:@"{UIOffset=dd}"];
             types = set;
         });
+        //如果是以上结构体则支持归解档
         if ([types containsObject:propertyInfo.typeEncoding]) {
             meta->_isStructAvailableForKeyedArchiver = YES;
         }
@@ -493,6 +476,7 @@ static force_inline id YYValueForMultiKeys(__unsafe_unretained NSDictionary *dic
     meta->_cls = propertyInfo.cls;
     
     if (generic) {
+        //容器类元素是否实现了 modelCustomClassForDictionary协议
         meta->_hasCustomClassFromDictionary = [generic respondsToSelector:@selector(modelCustomClassForDictionary:)];
     } else if (meta->_cls && meta->_nsType == YYEncodingTypeNSUnknown) {
         meta->_hasCustomClassFromDictionary = [meta->_cls respondsToSelector:@selector(modelCustomClassForDictionary:)];
@@ -515,6 +499,7 @@ static force_inline id YYValueForMultiKeys(__unsafe_unretained NSDictionary *dic
          long double
          pointer (such as SEL/CoreFoundation object)
          */
+        // 以下类型支持KVC
         switch (meta->_type & YYEncodingTypeMask) {
             case YYEncodingTypeBool:
             case YYEncodingTypeInt8:
@@ -587,6 +572,7 @@ static force_inline id YYValueForMultiKeys(__unsafe_unretained NSDictionary *dic
     
     BOOL _hasCustomClassFromDictionary;
     
+    BOOL _useBuiltinPK;
     NSString *_db_primaryKey;
     NSString * (^_db_generateDDLSql)(NSString *tableName);
 }
@@ -639,7 +625,8 @@ static force_inline id YYValueForMultiKeys(__unsafe_unretained NSDictionary *dic
     }
     if (allPropertyMetas.count) _allPropertyMetas = [allPropertyMetas.allValues sortedArrayUsingComparator:^NSComparisonResult(_YYModelPropertyMeta *p1, _YYModelPropertyMeta *p2) {
         return [p1->_name compare:p2->_name];
-    }];
+    }].copy;
+    
     if (_allPropertyMetas.count) {
         NSInteger count = _allPropertyMetas.count;
         NSMutableDictionary *tmp = [NSMutableDictionary dictionaryWithCapacity:count];
@@ -688,7 +675,6 @@ static force_inline id YYValueForMultiKeys(__unsafe_unretained NSDictionary *dic
                     [colums addObject:column];
                 }
             }
-            
         }
         _jsonPropertyMetas = jsonPropertyMetas;
          
@@ -697,7 +683,6 @@ static force_inline id YYValueForMultiKeys(__unsafe_unretained NSDictionary *dic
         
         allPropertyMetas = tmp;
     }
-    
     
     // create mapper
     NSMutableDictionary *mapper = [NSMutableDictionary new];
@@ -912,8 +897,9 @@ static force_inline NSDictionary *YYDictionaryFromJSON(id json) {
  @param meta  Should not be nil, meta.isCNumber should be YES, meta.getter should not be nil.
  @return A number object, or nil if failed.
  */
-static force_inline NSNumber *ModelCreateNumberFromProperty(__unsafe_unretained id model,
-                                                            __unsafe_unretained _YYModelPropertyMeta *meta) {
+static force_inline NSNumber *
+ModelCreateNumberFromProperty(__unsafe_unretained id model,
+                              __unsafe_unretained _YYModelPropertyMeta *meta) {
     switch (meta->_type & YYEncodingTypeMask) {
         case YYEncodingTypeBool: {
             return @(((bool (*)(id, SEL))(void *) objc_msgSend)((id)model, meta->_getter));
@@ -1381,19 +1367,6 @@ static void ModelSetWithDictionaryFunction(const void *_key, const void *_value,
         propertyMeta = propertyMeta->_next;
     };
 }
-static void DBModelSetWithDictionaryFunction(const void *_key, const void *_value, void *_context) {
-    ModelSetContext *context = _context;
-    __unsafe_unretained _YYModelMeta *meta = (__bridge _YYModelMeta *)(context->modelMeta);
-    __unsafe_unretained _YYModelPropertyMeta *propertyMeta = [meta->_dbMapper objectForKey:(__bridge id)(_key)];
-    
-    __unsafe_unretained id model = (__bridge id)(context->model);
-    while (propertyMeta) {
-        if (propertyMeta->_setter) {
-            ModelSetValueForProperty(model, (__bridge __unsafe_unretained id)_value, propertyMeta);
-        }
-        propertyMeta = propertyMeta->_next;
-    };
-}
 
 /**
  Apply function for model property meta, to set dictionary to model.
@@ -1583,178 +1556,6 @@ static id ModelToJSONObjectRecursive(NSObject *model) {
     return result;
 }
 
-static id DBModelToJSONObjectRecursive(NSObject *model) {
-    if (!model || model == (id)kCFNull) return model;
-    if ([model isKindOfClass:[NSString class]]) return model;
-    if ([model isKindOfClass:[NSNumber class]]) return model;
-    if ([model isKindOfClass:[NSDictionary class]]) {
-        if ([NSJSONSerialization isValidJSONObject:model]) return model;
-        NSMutableDictionary *newDic = [NSMutableDictionary new];
-        [((NSDictionary *)model) enumerateKeysAndObjectsUsingBlock:^(NSString *key, id obj, BOOL *stop) {
-            NSString *stringKey = [key isKindOfClass:[NSString class]] ? key : key.description;
-            if (!stringKey) return;
-            id jsonObj = DBModelToJSONObjectRecursive(obj);
-            if (!jsonObj) jsonObj = (id)kCFNull;
-            newDic[stringKey] = jsonObj;
-        }];
-        return newDic;
-    }
-    if ([model isKindOfClass:[NSSet class]]) {
-        NSArray *array = ((NSSet *)model).allObjects;
-        if ([NSJSONSerialization isValidJSONObject:array]) return array;
-        NSMutableArray *newArray = [NSMutableArray new];
-        for (id obj in array) {
-            if ([obj isKindOfClass:[NSString class]] || [obj isKindOfClass:[NSNumber class]]) {
-                [newArray addObject:obj];
-            } else {
-                id jsonObj = DBModelToJSONObjectRecursive(obj);
-                if (jsonObj && jsonObj != (id)kCFNull) [newArray addObject:jsonObj];
-            }
-        }
-        return newArray;
-    }
-    if ([model isKindOfClass:[NSArray class]]) {
-        if ([NSJSONSerialization isValidJSONObject:model]) return model;
-        NSMutableArray *newArray = [NSMutableArray new];
-        for (id obj in (NSArray *)model) {
-            if ([obj isKindOfClass:[NSString class]] || [obj isKindOfClass:[NSNumber class]]) {
-                [newArray addObject:obj];
-            } else {
-                id jsonObj = DBModelToJSONObjectRecursive(obj);
-                if (jsonObj && jsonObj != (id)kCFNull) [newArray addObject:jsonObj];
-            }
-        }
-        return newArray;
-    }
-    if ([model isKindOfClass:[NSURL class]]) return ((NSURL *)model).absoluteString;
-    if ([model isKindOfClass:[NSAttributedString class]]) return ((NSAttributedString *)model).string;
-    if ([model isKindOfClass:[NSDate class]]) return [YYISODateFormatter() stringFromDate:(id)model];
-    if ([model isKindOfClass:[NSData class]]) {
-        NSData *data = (NSData *)model;
-        if (!data.length) return nil;
-        return [data _db_columnString];
-    }
-    
-    _YYModelMeta *modelMeta = [_YYModelMeta metaWithClass:[model class]];
-    if (!modelMeta || modelMeta->_dbMapper == 0) return nil;
-    NSMutableDictionary *result = [[NSMutableDictionary alloc] initWithCapacity:64];
-    __unsafe_unretained NSMutableDictionary *dic = result; // avoid retain and release in block
-    
-    for (_DBColumnMeta *column in modelMeta->_dbColumns) {
-        if (column->_ignoreValue) continue;
-        NSString *columnName = column->_name;
-        _YYModelPropertyMeta *propertyMeta = modelMeta->_dbMapper[columnName];
-        if (!propertyMeta->_getter) continue;
-        
-        id value = nil;
-        if (propertyMeta->_isCNumber) {
-            value = ModelCreateNumberFromProperty(model, propertyMeta);
-        } else if (propertyMeta->_nsType) {
-            id v = ((id (*)(id, SEL))(void *) objc_msgSend)((id)model, propertyMeta->_getter);
-            value = DBModelToJSONObjectRecursive(v);
-        } else {
-            switch (propertyMeta->_type & YYEncodingTypeMask) {
-                case YYEncodingTypeObject: {
-                    id v = ((id (*)(id, SEL))(void *) objc_msgSend)((id)model, propertyMeta->_getter);
-                    value = DBModelToJSONObjectRecursive(v);
-                    if (value == (id)kCFNull) value = nil;
-                } break;
-                case YYEncodingTypeClass: {
-                    Class v = ((Class (*)(id, SEL))(void *) objc_msgSend)((id)model, propertyMeta->_getter);
-                    value = v ? NSStringFromClass(v) : nil;
-                } break;
-                case YYEncodingTypeSEL: {
-                    SEL v = ((SEL (*)(id, SEL))(void *) objc_msgSend)((id)model, propertyMeta->_getter);
-                    value = v ? NSStringFromSelector(v) : nil;
-                } break;
-                default: break;
-            }
-        }
-        if (!value) continue;
-        if (!dic[propertyMeta->_name]) {
-            dic[propertyMeta->_name] = value;
-        }
-    }
-    
-    return result;
-}
-static force_inline NSString *DBValueDescription(id val) {
-    if ([val isKindOfClass:[NSNumber class]]) {
-        return [NSString stringWithFormat:@"%@", val];
-    } else {
-        return [NSString stringWithFormat:@"'%@'", val];
-    }
-}
-static force_inline NSString *DBKeyValueDescription(NSArray *kv) {
-    return [NSString stringWithFormat:@"%@ = %@", kv[0], DBValueDescription(kv[1])];
-}
-static id DBModelToObjectRecursive(NSObject *model) {
-    if (!model || model == (id)kCFNull) return model;
-    if ([model isKindOfClass:[NSString class]]) return DBEscapeColumnValue((NSString *)model);
-    if ([model isKindOfClass:[NSNumber class]]) return model;
-    
-    if ([model isKindOfClass:[NSData class]]) {
-        NSData *data = (NSData *)model;
-        if (!data.length) return nil;
-        return [data _db_columnString];
-    }
-    if ([model isKindOfClass:[NSURL class]]) return ((NSURL *)model).absoluteString;
-    if ([model isKindOfClass:[NSAttributedString class]]) return ((NSAttributedString *)model).string;
-    if ([model isKindOfClass:[NSDate class]]) return [YYISODateFormatter() stringFromDate:(id)model];
-    
-    if ([model isKindOfClass:[NSDictionary class]] ||
-        [model isKindOfClass:[NSArray class]] ||
-        [model isKindOfClass:[NSSet class]]) {
-        id jsonObject = DBModelToJSONObjectRecursive(model);
-        if (!jsonObject) return nil;
-        if (![jsonObject isKindOfClass:[NSArray class]] &&
-            [jsonObject isKindOfClass:[NSDictionary class]]) return nil;
-        NSData *jsonData = [NSJSONSerialization dataWithJSONObject:jsonObject options:0 error:NULL];
-        if (jsonData.length == 0) return nil;
-        return [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
-    }
-    
-    _YYModelMeta *modelMeta = [_YYModelMeta metaWithClass:[model class]];
-    if (!modelMeta) return nil;
-    NSMutableArray *result = [[NSMutableArray alloc] initWithCapacity:64];
-    
-    for (_DBColumnMeta *column in modelMeta->_dbColumns) {
-        if (column->_ignoreValue) continue;
-        NSString *columnName = column->_name;
-        _YYModelPropertyMeta *propertyMeta = modelMeta->_dbMapper[columnName];
-        if (!propertyMeta->_getter) continue;
-        
-        id value = nil;
-        if (propertyMeta->_isCNumber) {
-            value = ModelCreateNumberFromProperty(model, propertyMeta);
-        } else if (propertyMeta->_nsType) {
-            id v = ((id (*)(id, SEL))(void *) objc_msgSend)((id)model, propertyMeta->_getter);
-            value = DBModelToObjectRecursive(v);
-        } else {
-            switch (propertyMeta->_type & YYEncodingTypeMask) {
-                case YYEncodingTypeObject: {
-                    id v = ((id (*)(id, SEL))(void *) objc_msgSend)((id)model, propertyMeta->_getter);
-                    value = DBModelToObjectRecursive(v);
-                    if (value == (id)kCFNull) value = nil;
-                } break;
-                case YYEncodingTypeClass: {
-                    Class v = ((Class (*)(id, SEL))(void *) objc_msgSend)((id)model, propertyMeta->_getter);
-                    value = v ? NSStringFromClass(v) : nil;
-                } break;
-                case YYEncodingTypeSEL: {
-                    SEL v = ((SEL (*)(id, SEL))(void *) objc_msgSend)((id)model, propertyMeta->_getter);
-                    value = v ? NSStringFromSelector(v) : nil;
-                } break;
-                default: break;
-            }
-        }
-        if (!value) continue;
-        [result addObject:@[propertyMeta->_name, value]];
-    }
-    
-    return result;
-}
- 
 
 @implementation NSObject (YYModel)
 
@@ -1769,6 +1570,7 @@ static id DBModelToObjectRecursive(NSObject *model) {
     
     Class cls = [self class];
     _YYModelMeta *modelMeta = [_YYModelMeta metaWithClass:cls];
+    // 可以根据dictionary数据创建一个不同于当前类的对象来完成json转model
     if (modelMeta->_hasCustomClassFromDictionary) {
         cls = [cls modelCustomClassForDictionary:dictionary] ?: cls;
     }
@@ -1776,17 +1578,6 @@ static id DBModelToObjectRecursive(NSObject *model) {
     NSObject *one = [cls new];
     if ([one setPropertiesValuesWithDictionary:dictionary]) return one;
     return nil;
-}
-
-+ (instancetype)db_modelWithDictionary:(NSDictionary *)dictionary {
-    if (!dictionary || dictionary == (id)kCFNull) return nil;
-    if (![dictionary isKindOfClass:[NSDictionary class]]) return nil;
-    
-    Class cls = [self class];
-    
-    NSObject *one = [cls new];
-    [one db_setPropertiesWithDictionary:dictionary];
-    return one;
 }
 
 - (BOOL)setPropertiesValuesWithJSON:(id)json {
@@ -1829,23 +1620,6 @@ static id DBModelToObjectRecursive(NSObject *model) {
     
     return YES;
 }
-- (BOOL)db_setPropertiesWithDictionary:(NSDictionary *)dic {
-    if (!dic || dic == (id)kCFNull) return NO;
-    if (![dic isKindOfClass:[NSDictionary class]]) return NO;
-    
-    _YYModelMeta *modelMeta = [_YYModelMeta metaWithClass:object_getClass(self)];
-    NSInteger count = modelMeta->_dbMapper.count;
-    if (count == 0) return NO;
-    
-    ModelSetContext context = {0};
-    context.modelMeta = (__bridge void *)(modelMeta);
-    context.model = (__bridge void *)(self);
-    
-    CFDictionaryApplyFunction((CFDictionaryRef)dic, DBModelSetWithDictionaryFunction, &context);
-    
-    return YES;
-}
-
 
 - (id)modelToJSONObject {
     id jsonObject = ModelToJSONObjectRecursive(self);
@@ -2232,6 +2006,225 @@ NSArray *JSONArrayFromFilePath(NSString *path) {
 
 // MARK: - YYDataBase
 
+static void DBModelSetWithDictionaryFunction(const void *_key, const void *_value, void *_context) {
+    ModelSetContext *context = _context;
+    __unsafe_unretained _YYModelMeta *meta = (__bridge _YYModelMeta *)(context->modelMeta);
+    __unsafe_unretained _YYModelPropertyMeta *propertyMeta = [meta->_dbMapper objectForKey:(__bridge id)(_key)];
+    
+    __unsafe_unretained id model = (__bridge id)(context->model);
+    while (propertyMeta) {
+        if (propertyMeta->_setter) {
+            ModelSetValueForProperty(model, (__bridge __unsafe_unretained id)_value, propertyMeta);
+        }
+        propertyMeta = propertyMeta->_next;
+    };
+}
+static id DBModelToJSONObjectRecursive(NSObject *model) {
+    if (!model || model == (id)kCFNull) return model;
+    if ([model isKindOfClass:[NSString class]]) return model;
+    if ([model isKindOfClass:[NSNumber class]]) return model;
+    if ([model isKindOfClass:[NSDictionary class]]) {
+        if ([NSJSONSerialization isValidJSONObject:model]) return model;
+        NSMutableDictionary *newDic = [NSMutableDictionary new];
+        [((NSDictionary *)model) enumerateKeysAndObjectsUsingBlock:^(NSString *key, id obj, BOOL *stop) {
+            NSString *stringKey = [key isKindOfClass:[NSString class]] ? key : key.description;
+            if (!stringKey) return;
+            id jsonObj = DBModelToJSONObjectRecursive(obj);
+            if (!jsonObj) jsonObj = (id)kCFNull;
+            newDic[stringKey] = jsonObj;
+        }];
+        return newDic;
+    }
+    if ([model isKindOfClass:[NSSet class]]) {
+        NSArray *array = ((NSSet *)model).allObjects;
+        if ([NSJSONSerialization isValidJSONObject:array]) return array;
+        NSMutableArray *newArray = [NSMutableArray new];
+        for (id obj in array) {
+            if ([obj isKindOfClass:[NSString class]] || [obj isKindOfClass:[NSNumber class]]) {
+                [newArray addObject:obj];
+            } else {
+                id jsonObj = DBModelToJSONObjectRecursive(obj);
+                if (jsonObj && jsonObj != (id)kCFNull) [newArray addObject:jsonObj];
+            }
+        }
+        return newArray;
+    }
+    if ([model isKindOfClass:[NSArray class]]) {
+        if ([NSJSONSerialization isValidJSONObject:model]) return model;
+        NSMutableArray *newArray = [NSMutableArray new];
+        for (id obj in (NSArray *)model) {
+            if ([obj isKindOfClass:[NSString class]] || [obj isKindOfClass:[NSNumber class]]) {
+                [newArray addObject:obj];
+            } else {
+                id jsonObj = DBModelToJSONObjectRecursive(obj);
+                if (jsonObj && jsonObj != (id)kCFNull) [newArray addObject:jsonObj];
+            }
+        }
+        return newArray;
+    }
+    if ([model isKindOfClass:[NSURL class]]) return ((NSURL *)model).absoluteString;
+    if ([model isKindOfClass:[NSAttributedString class]]) return ((NSAttributedString *)model).string;
+    if ([model isKindOfClass:[NSDate class]]) return [YYISODateFormatter() stringFromDate:(id)model];
+    if ([model isKindOfClass:[NSData class]]) {
+        NSData *data = (NSData *)model;
+        if (!data.length) return nil;
+        return [data _db_columnString];
+    }
+    
+    _YYModelMeta *modelMeta = [_YYModelMeta metaWithClass:[model class]];
+    if (!modelMeta || modelMeta->_dbMapper == 0) return nil;
+    NSMutableDictionary *result = [[NSMutableDictionary alloc] initWithCapacity:64];
+    __unsafe_unretained NSMutableDictionary *dic = result; // avoid retain and release in block
+    
+    for (_DBColumnMeta *column in modelMeta->_dbColumns) {
+        if (column->_ignoreValue) continue;
+        NSString *columnName = column->_name;
+        _YYModelPropertyMeta *propertyMeta = modelMeta->_dbMapper[columnName];
+        if (!propertyMeta->_getter) continue;
+        
+        id value = nil;
+        if (propertyMeta->_isCNumber) {
+            value = ModelCreateNumberFromProperty(model, propertyMeta);
+        } else if (propertyMeta->_nsType) {
+            id v = ((id (*)(id, SEL))(void *) objc_msgSend)((id)model, propertyMeta->_getter);
+            value = DBModelToJSONObjectRecursive(v);
+        } else {
+            switch (propertyMeta->_type & YYEncodingTypeMask) {
+                case YYEncodingTypeObject: {
+                    id v = ((id (*)(id, SEL))(void *) objc_msgSend)((id)model, propertyMeta->_getter);
+                    value = DBModelToJSONObjectRecursive(v);
+                    if (value == (id)kCFNull) value = nil;
+                } break;
+                case YYEncodingTypeClass: {
+                    Class v = ((Class (*)(id, SEL))(void *) objc_msgSend)((id)model, propertyMeta->_getter);
+                    value = v ? NSStringFromClass(v) : nil;
+                } break;
+                case YYEncodingTypeSEL: {
+                    SEL v = ((SEL (*)(id, SEL))(void *) objc_msgSend)((id)model, propertyMeta->_getter);
+                    value = v ? NSStringFromSelector(v) : nil;
+                } break;
+                default: break;
+            }
+        }
+        if (!value) continue;
+        if (!dic[propertyMeta->_name]) {
+            dic[propertyMeta->_name] = value;
+        }
+    }
+    
+    return result;
+}
+static force_inline NSString *DBValueDescription(id val) {
+    if ([val isKindOfClass:[NSNumber class]]) {
+        return [NSString stringWithFormat:@"%@", val];
+    } else {
+        return [NSString stringWithFormat:@"'%@'", val];
+    }
+}
+static force_inline NSString *DBKeyValueDescription(NSArray *kv) {
+    return [NSString stringWithFormat:@"%@ = %@", kv[0], DBValueDescription(kv[1])];
+}
+static id DBModelToObjectRecursive(NSObject *model) {
+    if (!model || model == (id)kCFNull) return model;
+    if ([model isKindOfClass:[NSString class]]) return DBEscapeColumnValue((NSString *)model);
+    if ([model isKindOfClass:[NSNumber class]]) return model;
+    
+    if ([model isKindOfClass:[NSData class]]) {
+        NSData *data = (NSData *)model;
+        if (!data.length) return nil;
+        return [data _db_columnString];
+    }
+    if ([model isKindOfClass:[NSURL class]]) return ((NSURL *)model).absoluteString;
+    if ([model isKindOfClass:[NSAttributedString class]]) return ((NSAttributedString *)model).string;
+    if ([model isKindOfClass:[NSDate class]]) return [YYISODateFormatter() stringFromDate:(id)model];
+    
+    if ([model isKindOfClass:[NSDictionary class]] ||
+        [model isKindOfClass:[NSArray class]] ||
+        [model isKindOfClass:[NSSet class]]) {
+        id jsonObject = DBModelToJSONObjectRecursive(model);
+        if (!jsonObject) return nil;
+        if (![jsonObject isKindOfClass:[NSArray class]] &&
+            [jsonObject isKindOfClass:[NSDictionary class]]) return nil;
+        NSData *jsonData = [NSJSONSerialization dataWithJSONObject:jsonObject options:0 error:NULL];
+        if (jsonData.length == 0) return nil;
+        return [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
+    }
+    
+    _YYModelMeta *modelMeta = [_YYModelMeta metaWithClass:[model class]];
+    if (!modelMeta) return nil;
+    NSMutableArray *result = [[NSMutableArray alloc] initWithCapacity:64];
+    
+    for (_DBColumnMeta *column in modelMeta->_dbColumns) {
+        if (column->_ignoreValue) continue;
+        NSString *columnName = column->_name;
+        _YYModelPropertyMeta *propertyMeta = modelMeta->_dbMapper[columnName];
+        if (!propertyMeta->_getter) continue;
+        
+        id value = nil;
+        if (propertyMeta->_isCNumber) {
+            value = ModelCreateNumberFromProperty(model, propertyMeta);
+        } else if (propertyMeta->_nsType) {
+            id v = ((id (*)(id, SEL))(void *) objc_msgSend)((id)model, propertyMeta->_getter);
+            value = DBModelToObjectRecursive(v);
+        } else {
+            switch (propertyMeta->_type & YYEncodingTypeMask) {
+                case YYEncodingTypeObject: {
+                    id v = ((id (*)(id, SEL))(void *) objc_msgSend)((id)model, propertyMeta->_getter);
+                    value = DBModelToObjectRecursive(v);
+                    if (value == (id)kCFNull) value = nil;
+                } break;
+                case YYEncodingTypeClass: {
+                    Class v = ((Class (*)(id, SEL))(void *) objc_msgSend)((id)model, propertyMeta->_getter);
+                    value = v ? NSStringFromClass(v) : nil;
+                } break;
+                case YYEncodingTypeSEL: {
+                    SEL v = ((SEL (*)(id, SEL))(void *) objc_msgSend)((id)model, propertyMeta->_getter);
+                    value = v ? NSStringFromSelector(v) : nil;
+                } break;
+                default: break;
+            }
+        }
+        if (!value) continue;
+        [result addObject:@[propertyMeta->_name, value]];
+    }
+    
+    return result;
+}
+
+@interface NSObject (_DBSupport)
+
+@end
+@implementation NSObject (_DBSupport)
+
++ (instancetype)db_modelWithDictionary:(NSDictionary *)dictionary {
+    if (!dictionary || dictionary == (id)kCFNull) return nil;
+    if (![dictionary isKindOfClass:[NSDictionary class]]) return nil;
+    
+    Class cls = [self class];
+    
+    NSObject *one = [cls new];
+    [one db_setPropertiesWithDictionary:dictionary];
+    return one;
+}
+
+- (BOOL)db_setPropertiesWithDictionary:(NSDictionary *)dic {
+    if (!dic || dic == (id)kCFNull) return NO;
+    if (![dic isKindOfClass:[NSDictionary class]]) return NO;
+    
+    _YYModelMeta *modelMeta = [_YYModelMeta metaWithClass:object_getClass(self)];
+    NSInteger count = modelMeta->_dbMapper.count;
+    if (count == 0) return NO;
+    
+    ModelSetContext context = {0};
+    context.modelMeta = (__bridge void *)(modelMeta);
+    context.model = (__bridge void *)(self);
+    
+    CFDictionaryApplyFunction((CFDictionaryRef)dic, DBModelSetWithDictionaryFunction, &context);
+    
+    return YES;
+}
+@end
+
 #import "YYDatabase.h"
 
 #import "NSString+YYModel.h"
@@ -2297,6 +2290,23 @@ static force_inline NSArray *KeyConstraintOrder() {
     return @[@(NotNull), @(Unique), @(PrimaryKey), @(Autoincrement), @(Default)];
 }
 
+static force_inline NSString *ForeignKeyActionDesc(ForeignKeyAction action) {
+    switch (action) {
+        case nothing:
+            return @"no action";
+        case prohibit:
+            return @"restrict";
+        case setNULL:
+            return @"set null";
+        case setDefault:
+            return @"set default";
+        case cascade:
+            return @"cascade";
+        default:
+            break;
+    }
+}
+
 @interface ColumnConstraintWorker ()
 @property (nonatomic, strong) NSMutableDictionary<NSNumber *, id> *types;
 @end
@@ -2314,27 +2324,28 @@ static force_inline NSArray *KeyConstraintOrder() {
 - (ColumnConstraintWorker * _Nonnull (^)(void))unique {
     return [self _addConstraint:Unique];
 }
+- (ColumnConstraintWorker * _Nonnull (^)(void))uniqueIndex {
+    return [self _addConstraint:UniqueIndex];
+}
+- (ColumnConstraintWorker * _Nonnull (^)(void))index {
+    return [self _addConstraint:Index];
+}
+
 - (ColumnConstraintWorker * _Nonnull (^)(id _Nonnull))defaulte {
     return ^(id value) {
         self->_types[@(Default)] = value;
         return self;
     };
 }
-
-- (ColumnConstraintWorker * _Nonnull (^)(TableName _Nonnull, ColumnName _Nonnull))foreignRef {
-    return ^(TableName tableName, ColumnName column) {
+- (ColumnConstraintWorker * _Nonnull (^)(TableName _Nonnull, ColumnName _Nonnull, ForeignKeyAction, ForeignKeyAction))foreignRef {
+    return ^(TableName tableName, ColumnName column, ForeignKeyAction onDelete, ForeignKeyAction onUpdate) {
+        NSString *del = ForeignKeyActionDesc(onDelete);
+        NSString *up = ForeignKeyActionDesc(onUpdate);
         self->_types[@(ForeignReference)] = ^(ColumnName existName) {
-            return [NSString stringWithFormat:@"foreign key (%@) references %@(%@)", existName, tableName, column];
+            return [NSString stringWithFormat:@"foreign key (%@) references %@(%@) on delete %@ on update %@", existName, tableName, column, del, up];
         };
         return self;
     };
-}
-
-- (ColumnConstraintWorker * _Nonnull (^)(void))uniqueIndex {
-    return [self _addConstraint:UniqueIndex];
-}
-- (ColumnConstraintWorker * _Nonnull (^)(void))index {
-    return [self _addConstraint:Index];
 }
 
 - (ColumnConstraintWorker *  _Nonnull (^)(void))_addConstraint:(ColumnConstraintType)type {
@@ -2357,7 +2368,6 @@ static force_inline NSArray *KeyConstraintOrder() {
 - (BOOL)containsIndex {
     return _types[@(Index)] != nil;
 }
-
 
 - (NSString *)toConstraintWithColumnName:(NSString *)name type:(DBColumnType)type  {
     // 为了简单起见，这里只做一些必要的检验，
@@ -2493,8 +2503,7 @@ static force_inline NSArray *KeyConstraintOrder() {
             if (!_db_primaryKey) {
                 _db_primaryKey = [name copy];
                 [tmp insertObject:info atIndex:0];
-            }
-            else {
+            } else {
                 NSAssert(NO, @"该库不支持联合主键，请检查(%@, %@)字段", _db_primaryKey, name);
             }
         } else {
@@ -2505,6 +2514,7 @@ static force_inline NSArray *KeyConstraintOrder() {
     }
      
     if (!_db_primaryKey) {
+        _useBuiltinPK = YES;
         NSString *pk = DBColumnDefaultPK;
         [tmp insertObject:[NSString stringWithFormat:@"%@ integer primary key autoincrement", pk] atIndex:0];
         _db_primaryKey = pk;
@@ -2620,14 +2630,14 @@ DBCondition db_day_is(const char *column, int day) {
     }
     
     return [[self class] _db_initializeIfNecessaryWithSqls:^NSArray<NSString *> *(NSString *tableName, NSString *primaryKey, _YYModelMeta *meta) {
-        
+        NSAssert(!meta->_useBuiltinPK, @"使用此方法必须指定主键");
         NSString *sql = [self _db_updateSqlWithTableName:tableName primaryKey:primaryKey];
         return @[sql];
     }];
 }
 - (BOOL)db_updateColumnsInString:(NSString *)columns {
     return [[self class] _db_initializeIfNecessaryWithSqls:^NSArray<NSString *> *(NSString *tableName, NSString *primaryKey, _YYModelMeta *meta) {
-        
+        NSAssert(!meta->_useBuiltinPK, @"使用此方法必须指定主键");
         NSString *sql = [self _db_updateSqlWithTableName:tableName
                                               primaryKey:primaryKey
                                                whiteList:columns
@@ -2637,18 +2647,13 @@ DBCondition db_day_is(const char *column, int day) {
 }
 - (BOOL)db_updateExcludeColumnInString:(NSString *)exclude {
     return [[self class] _db_initializeIfNecessaryWithSqls:^NSArray<NSString *> *(NSString *tableName, NSString *primaryKey, _YYModelMeta *meta) {
-        
+        NSAssert(!meta->_useBuiltinPK, @"使用此方法必须指定主键");
         NSString *sql = [self _db_updateSqlWithTableName:tableName
                                               primaryKey:primaryKey
                                                whiteList:nil
                                                blackList:exclude];
         return @[sql];
     }];
-} 
-+ (BOOL)db_updateSeqFromSequenceTable:(NSInteger)value {
-    YYDatabase *db = _YYGetGlobalDBFromCache(self);
-    NSString *tableName = [self db_tableName];
-    return [db execute:[NSString stringWithFormat:@"update sqlite_sequence set seq = %zu where name = '%@';", value, tableName]];
 }
 
 - (BOOL)db_delete {
@@ -2656,22 +2661,22 @@ DBCondition db_day_is(const char *column, int day) {
         return [(NSArray *)self db_deletes];
     }
     return [[self class] _db_initializeIfNecessaryWithSqls:^NSArray<NSString *> *(NSString *tableName, NSString *primaryKey, _YYModelMeta *meta) {
+        NSAssert(!meta->_useBuiltinPK, @"使用此方法必须指定主键");
         return @[[self _db_deleteSqlWithTableName:tableName primaryKey:primaryKey]];
     }];
 }
 + (BOOL)db_deleteWithPrimaryValue:(id)primaryValue {
-    if (!primaryValue) return NO;
-    return [self _db_initializeIfNecessaryWithSqls:^NSArray<NSString *> *(NSString *tableName, NSString *primaryKey, _YYModelMeta *meta) {
+    if (!primaryValue) return YES;
+    return [self _db_initializeIfNecessaryWithSqls:^NSArray<NSString *> *(NSString *tableName, NSString *primaryKey, _YYModelMeta *meta) { 
         return @[[NSString stringWithFormat:@"delete from %@ where %@ = %@;", tableName, primaryKey, DBValueDescription(primaryValue)]];
     }];
 }
 + (BOOL)db_deleteWithPrimaryValueInArray:(NSArray *)array {
     if (!array.count) return YES;
     return [self _db_initializeIfNecessaryWithSqls:^NSArray<NSString *> *(NSString *tableName, NSString *primaryKey, _YYModelMeta *meta) {
-        BOOL isDigit = [array[0] isKindOfClass:[NSNumber class]];
+        
         NSString *valRange = [[array _db_map:^id _Nullable(id obj, NSUInteger idx) {
-            if (isDigit) return [NSString stringWithFormat:@"%@", obj];
-            return [NSString stringWithFormat:@"'%@'", obj];
+            return DBValueDescription(obj);
         }] componentsJoinedByString:@", "];
         return @[[NSString stringWithFormat:@"delete from %@ where %@ in (%@);", tableName, primaryKey, valRange]];
     }];
@@ -2679,8 +2684,9 @@ DBCondition db_day_is(const char *column, int day) {
 
 - (instancetype)db_select {
     Class cls = [self class];
-    
-    NSString *primaryKey = [_YYModelMeta metaWithClass:cls].db_primaryKey;
+    _YYModelMeta * meta = [_YYModelMeta metaWithClass:cls];
+    NSAssert(!meta->_useBuiltinPK, @"使用此方法必须指定主键");
+    NSString *primaryKey = meta.db_primaryKey;
     
     id primaryValue = [self valueForKeyPath:primaryKey];
     if (!primaryValue) return self;
@@ -2705,7 +2711,6 @@ DBCondition db_day_is(const char *column, int day) {
     NSMutableArray *sqls = [NSMutableArray arrayWithCapacity:16];
     [sqls addObject:[NSString stringWithFormat:@"drop table if exists %@;", tableName]];
     [sqls addObject:[NSString stringWithFormat:@"delete from t_master where name = '%@';", tableName]];
-    [sqls addObject:[NSString stringWithFormat:@"delete from sqlite_sequence where name = '%@';", tableName]];
     return [db executesNoRollback:sqls];
 }
 + (BOOL)db_dropIndexTable {
@@ -2800,7 +2805,7 @@ DBCondition db_day_is(const char *column, int day) {
         if (white && ![white containsObject:name]) return nil;
         if (black && [black containsObject:name]) return nil;
         return DBKeyValueDescription(obj);
-    }] componentsJoinedByString:@","];
+    }] componentsJoinedByString:@", "];
     return [NSString stringWithFormat:@"update %@ set %@ where %@;", tableName, cmps, DBKeyValueDescription(@[primaryKey, primaryValue])];
 }
 - (NSString *)_db_deleteSqlWithTableName:(NSString *)tableName
