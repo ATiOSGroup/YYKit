@@ -2864,6 +2864,7 @@ DBCondition db_day_is(const char *column, int day) {
     NSString *primaryKey = meta.db_primaryKey;
     
     if (meta->_dbIsInitialized) {
+        if (!block) return YES;
         return [db executes:block(tableName, primaryKey, db, meta)];;
     }
     meta->_dbIsInitialized = YES;
