@@ -573,6 +573,7 @@ static force_inline id YYValueForMultiKeys(__unsafe_unretained NSDictionary *dic
     BOOL _hasCustomClassFromDictionary;
     
     BOOL _useBuiltinPK;
+    BOOL _dbIsInitialized;
     NSString *_db_primaryKey;
     NSString * (^_db_generateDDLSql)(NSString *tableName);
 }
@@ -827,6 +828,14 @@ static force_inline id YYValueForMultiKeys(__unsafe_unretained NSDictionary *dic
 
 - (NSArray<NSString *> *)_dbColumnNamesDebuged {
     return [self _dbColumnNamesDebugged:YES];
+}
+- (NSArray<NSString *> *)_dbColumnsOnMasterTable {
+    NSArray *res = [_dbColumns _db_map:^id _Nullable(_DBColumnMeta *obj, NSUInteger idx) {
+        NSString *name = obj->_name;
+        if ([name isEqualToString:_db_primaryKey]) return nil;
+        return name;
+    }];
+    return [res arrayByAddingObjectsFromArray:@[DBColumnInsertTimestamp, DBColumnInsertTime]];
 }
 
 - (NSArray<NSString *> *)_dbColumnInfosDebuged {
@@ -2722,11 +2731,13 @@ DBCondition db_day_is(const char *column, int day) {
 
 + (BOOL)db_execute:(NSString *)sql {
     if (!sql.length) return NO;
+    [self db_updateTableIfNecessary];
     YYDatabase *db = _YYGetGlobalDBFromCache(self);
     return [db execute:sql];
 }
 + (NSArray<NSDictionary<NSString *, id> *> *)db_query:(NSString *)sql {
     if (!sql.length) return nil;
+    [self db_updateTableIfNecessary];
     YYDatabase *db = _YYGetGlobalDBFromCache(self);
     return [db query:sql];
 }
@@ -2852,6 +2863,11 @@ DBCondition db_day_is(const char *column, int day) {
     
     NSString *primaryKey = meta.db_primaryKey;
     
+    if (meta->_dbIsInitialized) {
+        return [db executes:block(tableName, primaryKey, db, meta)];;
+    }
+    meta->_dbIsInitialized = YES;
+    
     NSMutableArray<NSString *> *sqls = [NSMutableArray arrayWithCapacity:16];
     if ([db query:@"select name from sqlite_master where type = 'table' and name = 't_master';"].count == 0) {
         NSString *first = [NSString stringWithFormat:@"create table if not exists t_master(name text primary key, columns text, primaryKey text, version text, %@);", _DBExtraDebugColumns()];
@@ -2873,7 +2889,7 @@ DBCondition db_day_is(const char *column, int day) {
             }
             NSCharacterSet *whiteSet = [NSCharacterSet whitespaceAndNewlineCharacterSet];
             /// 新表的所有字段
-            NSArray *newColumns = [meta _dbColumnNamesDebuged];
+            NSArray *newColumns = [meta _dbColumnsOnMasterTable];
             NSString *newColumnNames = [newColumns componentsJoinedByString:@","];
             
             /// 旧表的所有字段
@@ -2882,7 +2898,9 @@ DBCondition db_day_is(const char *column, int day) {
             }];
             NSString *dbColumnNames = [dbColumns componentsJoinedByString:@","];
             
-            if ([newColumnNames isEqualToString:dbColumnNames]) {
+            NSString *dbPK = result[0][@"primaryKey"];
+            if ([newColumnNames isEqualToString:dbColumnNames] &&
+                [dbPK isEqualToString:primaryKey]) {
                 ///新表的所有字段与旧表的所有字段相同，无需迁移
                 if (!block) return YES;
                 return [db executes:block(tableName, primaryKey, db, meta)];
@@ -2895,7 +2913,6 @@ DBCondition db_day_is(const char *column, int day) {
             NSString *sql = [meta db_createTableSqlWithTableName:tmpTableName];
             [sqls addObject:sql];
             
-            NSString *dbPK = result[0][@"primaryKey"];
             // 填充新表的主键数据
             [sqls addObject:[NSString stringWithFormat:@"insert into %@ (%@) select %@ from %@;", tmpTableName, primaryKey, dbPK, tableName]];
               
@@ -2947,7 +2964,7 @@ DBCondition db_day_is(const char *column, int day) {
     version = version.length ? version : @"0.0.1";
     
     // 记录此表的信息
-    [sqls addObject:[NSString stringWithFormat:@"insert or replace into t_master (name, columns, primaryKey, version) values('%@', '%@', '%@', '%@');", tableName, [[meta _dbColumnNamesDebuged] componentsJoinedByString:@","], primaryKey, version]];
+    [sqls addObject:[NSString stringWithFormat:@"insert or replace into t_master (name, columns, primaryKey, version) values('%@', '%@', '%@', '%@');", tableName, [[meta _dbColumnsOnMasterTable] componentsJoinedByString:@","], primaryKey, version]];
     
     if (!block) return [db executes:sqls];
     if (barrier) {
@@ -2966,6 +2983,7 @@ DBCondition db_day_is(const char *column, int day) {
 @implementation NSArray (YYDataBase)
 - (BOOL)db_deletes {
     return [self _db_initializeIfNecessaryWithSqls:^(NSMutableArray *sqls, NSString *tableName, NSString *primaryKey, _YYModelMeta *meta) {
+        NSAssert(!meta->_useBuiltinPK, @"使用此方法必须指定主键");
         NSString *valRange = [[self _db_map:^id _Nullable(id obj, NSUInteger idx) {
             id val = [obj valueForKeyPath:primaryKey];
             return DBValueDescription(val);
@@ -2975,6 +2993,7 @@ DBCondition db_day_is(const char *column, int day) {
 }
 - (BOOL)db_updates {
     return [self _db_initializeIfNecessaryWithSqls:^(NSMutableArray *sqls, NSString *tableName, NSString *primaryKey, _YYModelMeta *meta) {
+        NSAssert(!meta->_useBuiltinPK, @"使用此方法必须指定主键");
         for (NSObject *obj in self) {
             NSString *sql = [obj _db_updateSqlWithTableName:tableName
                                                  primaryKey:primaryKey];
@@ -3004,7 +3023,7 @@ DBCondition db_day_is(const char *column, int day) {
     if (!count) return YES;
     Class cls = [self[0] class];
     if (count > 1) {
-        for (NSInteger i = 0; i < count; i++) {
+        for (NSInteger i = 1; i < count; i++) {
             NSAssert([self[i] isMemberOfClass:cls], @"请确保数组中元素都是同一类型");
         }
     }
