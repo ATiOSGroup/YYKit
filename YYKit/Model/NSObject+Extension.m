@@ -574,6 +574,7 @@ static force_inline id YYValueForMultiKeys(__unsafe_unretained NSDictionary *dic
     
     BOOL _useBuiltinPK;
     BOOL _dbIsInitialized;
+    BOOL _containsForeignKey;
     NSString *_db_primaryKey;
     NSString * (^_db_generateDDLSql)(NSString *tableName);
 }
@@ -2321,6 +2322,9 @@ static force_inline NSString *ForeignKeyActionDesc(ForeignKeyAction action) {
 @end
 @implementation ColumnConstraintWorker
 
+- (void (^)(void))end {
+    return ^(void) {};
+}
 - (ColumnConstraintWorker * _Nonnull (^)(void))notnull {
     return [self _addConstraint:NotNull];
 }
@@ -2351,7 +2355,7 @@ static force_inline NSString *ForeignKeyActionDesc(ForeignKeyAction action) {
         NSString *del = ForeignKeyActionDesc(onDelete);
         NSString *up = ForeignKeyActionDesc(onUpdate);
         self->_types[@(ForeignReference)] = ^(ColumnName existName) {
-            return [NSString stringWithFormat:@"foreign key (%@) references %@(%@) on delete %@ on update %@", existName, tableName, column, del, up];
+            return [NSString stringWithFormat:@"foreign key(%@) references %@(%@) on delete %@ on update %@", existName, tableName, column, del, up];
         };
         return self;
     };
@@ -2519,7 +2523,10 @@ static force_inline NSString *ForeignKeyActionDesc(ForeignKeyAction action) {
             [tmp addObject:info];
         }
         NSString *foreignKey = [w toForeignKeyConstraint:name];
-        if (foreignKey.length) [foreigns addObject:foreignKey];
+        if (foreignKey.length) {
+            _containsForeignKey = YES;
+            [foreigns addObject:foreignKey];
+        }
     }
      
     if (!_db_primaryKey) {
@@ -2954,7 +2961,9 @@ DBCondition db_day_is(const char *column, int day) {
             }
         }
     }
-    
+    if (meta->_containsForeignKey) {
+        [sqls addObject:@"PRAGMA foreign_keys = ON;"];
+    }
     NSString *sql = [meta db_createTableSqlWithTableName:tableName];
     [sqls addObject:sql];
     

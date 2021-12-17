@@ -166,6 +166,9 @@ typedef NS_ENUM(NSInteger, ForeignKeyAction) {
 
 @interface ColumnConstraintWorker : NSObject
 
+/// 再约束的最后调用这个可以消除在swift中返回结果未使用的警告
+@property (nonatomic, copy, readonly) void (^end)(void);
+
 @property (nonatomic, copy, readonly) ColumnConstraintWorker * (^notnull)(void);
 
 // 主键字段默认包含 not null 和 unique 两个约束
@@ -285,7 +288,7 @@ FOUNDATION_EXTERN TableName  DBDefaultTableName;
 
 + (NSString *)db_lastErrorMessage;
 
-+ (YYDatabase *)db_handle;
+@property (nonatomic, strong, class, readonly) YYDatabase *db_handle;
 @end
 
 @interface NSArray (YYDataBase)
