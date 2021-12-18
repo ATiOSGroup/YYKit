@@ -163,8 +163,9 @@ int SQLiteCallBackCollation(void *pApp, int lLen, const void *lData, int rLen, c
     
     int result = sqlite3_open(_dbPath.UTF8String, &_db);
     if (result == SQLITE_OK) {
-        BOOL success = [self _addUnixepochFunction];
-        NSLog(@"");
+        [self _addUnixepochFunction];
+        /// 默认开启外键约束
+        [self __executeUTF8:"PRAGMA foreign_keys = ON;"];
         return YES;
     }
     else {

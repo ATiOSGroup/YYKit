@@ -574,7 +574,6 @@ static force_inline id YYValueForMultiKeys(__unsafe_unretained NSDictionary *dic
     
     BOOL _useBuiltinPK;
     BOOL _dbIsInitialized;
-    BOOL _containsForeignKey;
     NSString *_db_primaryKey;
     NSString * (^_db_generateDDLSql)(NSString *tableName);
 }
@@ -2523,10 +2522,7 @@ static force_inline NSString *ForeignKeyActionDesc(ForeignKeyAction action) {
             [tmp addObject:info];
         }
         NSString *foreignKey = [w toForeignKeyConstraint:name];
-        if (foreignKey.length) {
-            _containsForeignKey = YES;
-            [foreigns addObject:foreignKey];
-        }
+        if (foreignKey.length) [foreigns addObject:foreignKey];
     }
      
     if (!_db_primaryKey) {
@@ -2960,9 +2956,6 @@ DBCondition db_day_is(const char *column, int day) {
                 return [db executes:sqls];
             }
         }
-    }
-    if (meta->_containsForeignKey) {
-        [sqls addObject:@"PRAGMA foreign_keys = ON;"];
     }
     NSString *sql = [meta db_createTableSqlWithTableName:tableName];
     [sqls addObject:sql];
