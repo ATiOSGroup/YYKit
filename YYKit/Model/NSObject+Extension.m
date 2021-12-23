@@ -2028,10 +2028,29 @@ static void DBModelSetWithDictionaryFunction(const void *_key, const void *_valu
         propertyMeta = propertyMeta->_next;
     };
 }
+
+static id DBDescFromSimpleNSType(NSObject *model) {
+    if (!model || model == (id)kCFNull) return model;
+    if ([model isKindOfClass:[NSString class]]) return DBEscapeColumnValue((NSString *)model);
+    if ([model isKindOfClass:[NSNumber class]]) return model;
+    
+    if ([model isKindOfClass:[NSData class]]) {
+        NSData *data = (NSData *)model;
+        if (!data.length) return nil;
+        return [data _db_columnString];
+    }
+    if ([model isKindOfClass:[NSURL class]]) return ((NSURL *)model).absoluteString;
+    if ([model isKindOfClass:[NSAttributedString class]]) return ((NSAttributedString *)model).string;
+    if ([model isKindOfClass:[NSDate class]]) return [YYISODateFormatter() stringFromDate:(id)model];
+    
+    return nil;
+}
+
 static id DBModelToJSONObjectRecursive(NSObject *model) {
     if (!model || model == (id)kCFNull) return model;
-    if ([model isKindOfClass:[NSString class]]) return model;
-    if ([model isKindOfClass:[NSNumber class]]) return model;
+    id val = DBDescFromSimpleNSType(model);
+    if (val) return val;
+    
     if ([model isKindOfClass:[NSDictionary class]]) {
         if ([NSJSONSerialization isValidJSONObject:model]) return model;
         NSMutableDictionary *newDic = [NSMutableDictionary new];
@@ -2046,17 +2065,7 @@ static id DBModelToJSONObjectRecursive(NSObject *model) {
     }
     if ([model isKindOfClass:[NSSet class]]) {
         NSArray *array = ((NSSet *)model).allObjects;
-        if ([NSJSONSerialization isValidJSONObject:array]) return array;
-        NSMutableArray *newArray = [NSMutableArray new];
-        for (id obj in array) {
-            if ([obj isKindOfClass:[NSString class]] || [obj isKindOfClass:[NSNumber class]]) {
-                [newArray addObject:obj];
-            } else {
-                id jsonObj = DBModelToJSONObjectRecursive(obj);
-                if (jsonObj && jsonObj != (id)kCFNull) [newArray addObject:jsonObj];
-            }
-        }
-        return newArray;
+        model = array;
     }
     if ([model isKindOfClass:[NSArray class]]) {
         if ([NSJSONSerialization isValidJSONObject:model]) return model;
@@ -2071,20 +2080,11 @@ static id DBModelToJSONObjectRecursive(NSObject *model) {
         }
         return newArray;
     }
-    if ([model isKindOfClass:[NSURL class]]) return ((NSURL *)model).absoluteString;
-    if ([model isKindOfClass:[NSAttributedString class]]) return ((NSAttributedString *)model).string;
-    if ([model isKindOfClass:[NSDate class]]) return [YYISODateFormatter() stringFromDate:(id)model];
-    if ([model isKindOfClass:[NSData class]]) {
-        NSData *data = (NSData *)model;
-        if (!data.length) return nil;
-        return [data _db_columnString];
-    }
     
     _YYModelMeta *modelMeta = [_YYModelMeta metaWithClass:[model class]];
     if (!modelMeta || modelMeta->_dbMapper == 0) return nil;
-    NSMutableDictionary *result = [[NSMutableDictionary alloc] initWithCapacity:64];
-    __unsafe_unretained NSMutableDictionary *dic = result; // avoid retain and release in block
     
+    NSMutableDictionary *dic = [[NSMutableDictionary alloc] initWithCapacity:64];; // avoid retain and release in block
     for (_DBColumnMeta *column in modelMeta->_dbColumns) {
         if (column->_ignoreValue) continue;
         NSString *columnName = column->_name;
@@ -2121,7 +2121,7 @@ static id DBModelToJSONObjectRecursive(NSObject *model) {
         }
     }
     
-    return result;
+    return dic;
 }
 static force_inline NSString *DBValueDescription(id val) {
     if ([val isKindOfClass:[NSNumber class]]) {
@@ -2133,19 +2133,11 @@ static force_inline NSString *DBValueDescription(id val) {
 static force_inline NSString *DBKeyValueDescription(NSArray *kv) {
     return [NSString stringWithFormat:@"%@ = %@", kv[0], DBValueDescription(kv[1])];
 }
+
 static id DBModelToObjectRecursive(NSObject *model) {
     if (!model || model == (id)kCFNull) return model;
-    if ([model isKindOfClass:[NSString class]]) return DBEscapeColumnValue((NSString *)model);
-    if ([model isKindOfClass:[NSNumber class]]) return model;
-    
-    if ([model isKindOfClass:[NSData class]]) {
-        NSData *data = (NSData *)model;
-        if (!data.length) return nil;
-        return [data _db_columnString];
-    }
-    if ([model isKindOfClass:[NSURL class]]) return ((NSURL *)model).absoluteString;
-    if ([model isKindOfClass:[NSAttributedString class]]) return ((NSAttributedString *)model).string;
-    if ([model isKindOfClass:[NSDate class]]) return [YYISODateFormatter() stringFromDate:(id)model];
+    id val = DBDescFromSimpleNSType(model);
+    if (val) return val;
     
     if ([model isKindOfClass:[NSDictionary class]] ||
         [model isKindOfClass:[NSArray class]] ||

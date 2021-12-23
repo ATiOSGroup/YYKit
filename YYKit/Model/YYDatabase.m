@@ -53,26 +53,27 @@ void SQLiteCallBackFunction(sqlite3_context *context, int argc, sqlite3_value **
     NSMutableArray *params = [NSMutableArray arrayWithCapacity:count];
     for (int i = 0; i < count; i++) {
         id val = nil;
-        SqliteValueType type = sqlite3_value_type(argv[i]);
+        sqlite3_value *ptr = argv[i];
+        SqliteValueType type = sqlite3_value_type(ptr);
         switch (type) {
             case SqliteValueTypeNull: {
-                
+                val = [NSNull null];
             } break;
             case SqliteValueTypeText: {
-                const char *cString = (const char *)sqlite3_value_text(argv[i]);
+                const char *cString = (const char *)sqlite3_value_text(ptr);
                 if (cString) val = [NSString stringWithUTF8String:cString];
             } break;
             case SqliteValueTypeInteger: {
-                val = [NSNumber numberWithLongLong:sqlite3_value_int64(argv[i])];
+                val = [NSNumber numberWithLongLong:sqlite3_value_int64(ptr)];
             } break;
             case SqliteValueTypeFloat: {
-                val = [NSNumber numberWithDouble:sqlite3_value_double(argv[i])];
+                val = [NSNumber numberWithDouble:sqlite3_value_double(ptr)];
             } break;
-            default: break;
-        }
-        if (val == nil) {
-            type = SqliteValueTypeNull;
-            val = [NSNull null];
+            case SqliteValueTypeBlob: {
+                const void *bytes = sqlite3_value_blob(ptr);
+                int length = sqlite3_value_bytes(ptr);
+                val = bytes ? [NSData dataWithBytes:bytes length:(NSUInteger)length] : [NSNull null];
+            } break;
         }
         [params addObject:[[SqlFuncParam alloc] initWithTyep:type value:val]];
     }
@@ -95,6 +96,9 @@ void SQLiteCallBackFunction(sqlite3_context *context, int argc, sqlite3_value **
             }
         } else if ([res isKindOfClass:[NSString class]]) {
             sqlite3_result_text(context, [res UTF8String], -1, SQLITE_TRANSIENT);
+        } else if ([res isKindOfClass:[NSData class]]) {
+            NSData *data = (NSData *)res;
+            sqlite3_result_blob(context, data.bytes, (int)data.length, SQLITE_TRANSIENT);
         }
     }
 }
@@ -163,9 +167,9 @@ int SQLiteCallBackCollation(void *pApp, int lLen, const void *lData, int rLen, c
     
     int result = sqlite3_open(_dbPath.UTF8String, &_db);
     if (result == SQLITE_OK) {
-        [self _addUnixepochFunction];
         /// 默认开启外键约束
         [self __executeUTF8:"PRAGMA foreign_keys = ON;"];
+        [self _addUnixepochFunction];
         return YES;
     }
     else {

@@ -275,7 +275,7 @@
             NSString *infoPlistPath = [path stringByAppendingPathComponent:@"info.plist"];
             NSDictionary *info = [NSDictionary dictionaryWithContentsOfFile:infoPlistPath];
 //            [group modelSetWithDictionary:info];
-            [group setPropertiesWithDictionary:info];
+            [group setPropertiesValuesWithDictionary:info];
             if (group.emoticons.count == 0) {
                 i--;
                 max--;
