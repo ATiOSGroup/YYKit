@@ -31,14 +31,12 @@ FOUNDATION_EXPORT const unsigned char YYKitVersionString[];
 #import <YYKit/NSTimer+YYAdd.h>
 #import <YYKit/NSBundle+YYAdd.h>
 #import <YYKit/NSThread+YYAdd.h>
-
-#import <YYKit/UIColor+YYAdd.h>
+ 
 #import <YYKit/UIImage+YYAdd.h>
 #import <YYKit/UIControl+YYAdd.h>
 #import <YYKit/UIBarButtonItem+YYAdd.h>
 #import <YYKit/UIGestureRecognizer+YYAdd.h>
 #import <YYKit/UIView+YYAdd.h>
-#import <YYKit/UIScrollView+YYAdd.h>
 #import <YYKit/UITableView+YYAdd.h>
 #import <YYKit/UITextField+YYAdd.h>
 #import <YYKit/UIScreen+YYAdd.h>
@@ -102,8 +100,6 @@ FOUNDATION_EXPORT const unsigned char YYKitVersionString[];
 #import <YYKit/YYAsyncLayer.h>
 #import <YYKit/YYSentinel.h>
 #import <YYKit/YYDispatchQueuePool.h>
-#import <YYKit/YYThreadSafeArray.h>
-#import <YYKit/YYThreadSafeDictionary.h>
 
 #else
 
@@ -122,14 +118,12 @@ FOUNDATION_EXPORT const unsigned char YYKitVersionString[];
 #import "NSTimer+YYAdd.h"
 #import "NSBundle+YYAdd.h"
 #import "NSThread+YYAdd.h"
-
-#import "UIColor+YYAdd.h"
+ 
 #import "UIImage+YYAdd.h"
 #import "UIControl+YYAdd.h"
 #import "UIBarButtonItem+YYAdd.h"
 #import "UIGestureRecognizer+YYAdd.h"
 #import "UIView+YYAdd.h"
-#import "UIScrollView+YYAdd.h"
 #import "UITableView+YYAdd.h"
 #import "UITextField+YYAdd.h"
 #import "UIScreen+YYAdd.h"
