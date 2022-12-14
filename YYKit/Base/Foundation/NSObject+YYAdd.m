@@ -394,14 +394,4 @@ else if (size <= 4 * _size_ ) { \
     return obj;
 }
 
-@end
-
-
-@implementation NSObject (Extension)
-
-- (instancetype)yy_then:(void (^)(id _Nonnull))block {
-    block(self);
-    return self;
-}
-
-@end
+@end 

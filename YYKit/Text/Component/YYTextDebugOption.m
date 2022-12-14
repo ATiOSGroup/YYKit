@@ -10,8 +10,7 @@
 //
 
 #import "YYTextDebugOption.h"
-#import "YYKitMacro.h"
-#import "UIColor+YYAdd.h"
+#import "YYKitMacro.h" 
 #import "YYWeakProxy.h"
 
 

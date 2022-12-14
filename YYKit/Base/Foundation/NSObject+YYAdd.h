@@ -297,12 +297,6 @@ NS_ASSUME_NONNULL_BEGIN
  */
 - (nullable id)deepCopyWithArchiver:(Class)archiver unarchiver:(Class)unarchiver;
 
-@end
-
-@interface NSObject (Extension)
-
-- (instancetype)yy_then:(void (^)(id obj))block NS_SWIFT_UNAVAILABLE("");
-
-@end
+@end 
 
 NS_ASSUME_NONNULL_END

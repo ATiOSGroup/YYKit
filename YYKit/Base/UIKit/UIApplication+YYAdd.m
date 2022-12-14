@@ -32,36 +32,6 @@ YYSYNTH_DUMMY_CLASS(UIApplication_YYAdd)
 
 @implementation UIApplication (YYAdd)
 
-- (NSURL *)documentsURL {
-    return [[[NSFileManager defaultManager]
-             URLsForDirectory:NSDocumentDirectory
-             inDomains:NSUserDomainMask] lastObject];
-}
-
-- (NSString *)documentsPath {
-    return [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
-}
-
-- (NSURL *)cachesURL {
-    return [[[NSFileManager defaultManager]
-             URLsForDirectory:NSCachesDirectory
-             inDomains:NSUserDomainMask] lastObject];
-}
-
-- (NSString *)cachesPath {
-    return [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES) firstObject];
-}
-
-- (NSURL *)libraryURL {
-    return [[[NSFileManager defaultManager]
-             URLsForDirectory:NSLibraryDirectory
-             inDomains:NSUserDomainMask] lastObject];
-}
-
-- (NSString *)libraryPath {
-    return [NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) firstObject];
-}
-
 - (BOOL)isPirated {
     if ([[UIDevice currentDevice] isSimulator]) return YES; // Simulator is not from appstore
     
@@ -89,23 +59,7 @@ YYSYNTH_DUMMY_CLASS(UIApplication_YYAdd)
     NSString *path = [NSString stringWithFormat:@"%@/%@", bundlePath, name];
     return [[NSFileManager defaultManager] fileExistsAtPath:path];
 }
-
-- (NSString *)appBundleName {
-    return [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleName"];
-}
-
-- (NSString *)appBundleID {
-    return [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleIdentifier"];
-}
-
-- (NSString *)appVersion {
-    return [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"];
-}
-
-- (NSString *)appBuildVersion {
-    return [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleVersion"];
-}
-
+ 
 - (BOOL)isBeingDebugged {
     size_t size = sizeof(struct kinfo_proc);
     struct kinfo_proc info;

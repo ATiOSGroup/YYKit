@@ -6,8 +6,7 @@
 //  Copyright (c) 2014 ibireme. All rights reserved.
 //
 
-#import <UIKit/UIKit.h>
-#import "YYRootViewController.h"
+#import <UIKit/UIKit.h> 
 
 @interface YYAppDelegate : UIResponder <UIApplicationDelegate>
 @property (strong, nonatomic) UIWindow *window;
