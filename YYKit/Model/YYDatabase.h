@@ -61,6 +61,8 @@ typedef NS_ENUM(int, SqliteValueType) {
 
 - (NSString *)lastErrorMessage;
 
+- (int64_t)lastInsertRowId;
+
 - (instancetype)initWithPath:(NSString *)path NS_DESIGNATED_INITIALIZER;
 
 @property (nonatomic, strong, class, readonly) YYDatabase *memory;

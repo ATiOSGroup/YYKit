@@ -1031,7 +1031,7 @@ static dispatch_queue_t YYLabelGetReleaseQueue() {
         container.size = YYTextContainerMaxSize;
         
         YYTextLayout *layout = [YYTextLayout layoutWithContainer:container text:_innerText];
-        return layout.textBoundingRect.size;
+        return layout.textBoundingSize;
     }
     
     CGSize containerSize = _innerContainer.size;
@@ -1049,7 +1049,17 @@ static dispatch_queue_t YYLabelGetReleaseQueue() {
     container.size = containerSize;
     
     YYTextLayout *layout = [YYTextLayout layoutWithContainer:container text:_innerText];
-    return layout.textBoundingRect.size;
+    return layout.textBoundingSize;
+}
+
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    CGRect bounds = self.bounds;
+    if (_numberOfLines != 1 &&
+        (int)_preferredMaxLayoutWidth != (int)bounds.size.width) {
+        self.preferredMaxLayoutWidth = bounds.size.width;
+        [self invalidateIntrinsicContentSize];
+    }
 }
 
 #pragma mark - YYTextDebugTarget

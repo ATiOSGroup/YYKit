@@ -267,8 +267,17 @@ FOUNDATION_EXTERN TableName  DBDefaultTableName;
 - (BOOL)db_delete;
 + (BOOL)db_deleteWithPrimaryValue:(id)primaryValue;
 + (BOOL)db_deleteWithPrimaryValueInArray:(NSArray *)array;
++ (BOOL)db_delete;
+/*
+ 把自增的序号归为0
+ UPDATE sqlite_sequence SET seq = 0 WHERE name='TableName';
+ */
++ (BOOL)db_resetReq;
+
 
 // MARK: Select
+/// 查询所有，并转成模型
++ (NSArray *)db_select;
 /// 前提主键有值才能查询，并更新属性
 - (instancetype)db_select;
 /// 从数据库中查询主键值为 value 的记录并以模型返回
@@ -278,6 +287,8 @@ FOUNDATION_EXTERN TableName  DBDefaultTableName;
 + (BOOL)db_dropTable;
 + (BOOL)db_dropIndexTable;
  
++ (BOOL)db_reInitialize;
++ (NSInteger)db_lastInsertRowId;
 
 + (BOOL)db_execute:(NSString *)sql;
 + (nullable NSArray<NSDictionary<NSString *, id> *> *)db_query:(NSString *)sql;

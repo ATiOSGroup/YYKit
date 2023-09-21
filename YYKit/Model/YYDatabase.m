@@ -299,6 +299,11 @@ int SQLiteCallBackCollation(void *pApp, int lLen, const void *lData, int rLen, c
     return [NSString stringWithUTF8String:sqlite3_errmsg(_db)];
 }
 
+- (int64_t)lastInsertRowId {
+    return sqlite3_last_insert_rowid(_db);
+}
+
+
 // MARK: Private
 - (BOOL)__executeUTF8:(const char *)sql {
     if (strlen(sql) == 0) return YES;

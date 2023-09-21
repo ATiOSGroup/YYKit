@@ -2684,8 +2684,26 @@ DBCondition db_day_is(const char *column, int day) {
         }] componentsJoinedByString:@", "];
         return @[[NSString stringWithFormat:@"delete from %@ where %@ in (%@);", tableName, primaryKey, valRange]];
     }];
-} 
+}
++ (BOOL)db_delete {
+    return [self _db_initializeIfNecessaryWithSqls:^NSArray<NSString *> *(NSString *tableName, NSString *primaryKey, _YYModelMeta *meta) {
+        return @[[NSString stringWithFormat:@"delete from %@;", tableName]];
+    }];
+}
++ (BOOL)db_resetReq {
+    return [self _db_initializeIfNecessaryWithSqls:^NSArray<NSString *> *(NSString *tableName, NSString *primaryKey, _YYModelMeta *meta) {
+        return @[[NSString stringWithFormat:@"update sqlite_sequence set seq = 0 where name = '%@';", tableName]];
+    }];
+}
 
++ (NSArray *)db_select {
+    NSArray *rows = [self _db_selectAllRow];
+    NSMutableArray *models = [NSMutableArray new];
+    for (NSDictionary *row in rows) {
+        [models addObject:[self db_modelWithDictionary:row]];
+    }
+    return models;
+}
 - (instancetype)db_select {
     Class cls = [self class];
     _YYModelMeta * meta = [_YYModelMeta metaWithClass:cls];
@@ -2741,6 +2759,16 @@ DBCondition db_day_is(const char *column, int day) {
     return [self _db_initializeIfNecessaryWithAdditionalSqlMake:nil barrier:NO];
 }
  
++ (BOOL)db_reInitialize {
+    _YYModelMeta *meta = [_YYModelMeta metaWithClass:self];
+    meta->_dbIsInitialized = NO;
+    return [self _db_initializeIfNecessaryWithAdditionalSqlMake:nil barrier:NO];
+}
++ (NSInteger)db_lastInsertRowId {
+    YYDatabase *db = _YYGetGlobalDBFromCache(self);
+    if (!db) return 0;
+    return [db lastInsertRowId];
+}
 
 + (NSString *)db_createTableSql {
     return [self _db_createTableSqlWithTableName:[self db_tableName]];
@@ -2767,6 +2795,18 @@ DBCondition db_day_is(const char *column, int day) {
     }];
     return row;
 }
++ (NSArray<NSDictionary<NSString *, id> *> *)_db_selectAllRow {
+    __block NSArray *rows = nil;
+    [self _db_initializeIfNecessaryWithBarrierSqls:^(NSString *tableName, NSString *primaryKey, YYDatabase *db, _YYModelMeta *meta) {
+        
+        NSString *colums = [[meta _dbColumnNames] componentsJoinedByString:@", "];
+        
+        NSString *sql = [NSString stringWithFormat:@"select %@ from %@;", colums, tableName];
+        rows = [db query:sql];
+    }];
+    return rows;
+}
+
 
 - (NSString *)_db_insertSqlWithTableName:(NSString *)tableName
                                     meta:(_YYModelMeta *)meta
