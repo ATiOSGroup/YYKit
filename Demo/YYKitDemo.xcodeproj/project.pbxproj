@@ -11,11 +11,6 @@
 		B61014CB274239350085E02D /* NSObject+Extension.m in Sources */ = {isa = PBXBuildFile; fileRef = B61014C6274239350085E02D /* NSObject+Extension.m */; };
 		B61014CC274239350085E02D /* YYClassInfo.m in Sources */ = {isa = PBXBuildFile; fileRef = B61014C7274239350085E02D /* YYClassInfo.m */; };
 		B61014CD274239350085E02D /* NSString+YYModel.m in Sources */ = {isa = PBXBuildFile; fileRef = B61014C8274239350085E02D /* NSString+YYModel.m */; };
-		B62F640E276C283200A3DFE8 /* FMDatabaseAdditions.m in Sources */ = {isa = PBXBuildFile; fileRef = B62F6404276C283100A3DFE8 /* FMDatabaseAdditions.m */; };
-		B62F640F276C283200A3DFE8 /* FMDatabasePool.m in Sources */ = {isa = PBXBuildFile; fileRef = B62F6406276C283100A3DFE8 /* FMDatabasePool.m */; };
-		B62F6410276C283200A3DFE8 /* FMResultSet.m in Sources */ = {isa = PBXBuildFile; fileRef = B62F6409276C283100A3DFE8 /* FMResultSet.m */; };
-		B62F6411276C283200A3DFE8 /* FMDatabaseQueue.m in Sources */ = {isa = PBXBuildFile; fileRef = B62F640A276C283100A3DFE8 /* FMDatabaseQueue.m */; };
-		B62F6412276C283200A3DFE8 /* FMDatabase.m in Sources */ = {isa = PBXBuildFile; fileRef = B62F640D276C283200A3DFE8 /* FMDatabase.m */; };
 		B657F704276898B600AC9B74 /* YYDatabase.m in Sources */ = {isa = PBXBuildFile; fileRef = B657F703276898B600AC9B74 /* YYDatabase.m */; };
 		D9067DF11B975D3900F346EB /* YYTextExampleHelper.m in Sources */ = {isa = PBXBuildFile; fileRef = D9067DF01B975D3900F346EB /* YYTextExampleHelper.m */; };
 		D9067DF41B9813B500F346EB /* YYTextEditExample.m in Sources */ = {isa = PBXBuildFile; fileRef = D9067DF31B9813B500F346EB /* YYTextEditExample.m */; };
@@ -103,8 +98,6 @@
 		D9971BB01B84D55A00A7B424 /* YYTextAttributeExample.m in Sources */ = {isa = PBXBuildFile; fileRef = D9971BAF1B84D55A00A7B424 /* YYTextAttributeExample.m */; };
 		D9971BB51B85023300A7B424 /* EmoticonWeibo.bundle in Resources */ = {isa = PBXBuildFile; fileRef = D9971BB31B85023300A7B424 /* EmoticonWeibo.bundle */; };
 		D9971BB61B85023300A7B424 /* EmoticonQQ.bundle in Resources */ = {isa = PBXBuildFile; fileRef = D9971BB41B85023300A7B424 /* EmoticonQQ.bundle */; };
-		D9B25F9D1BEE79280038C00A /* bpg.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D9B25F9B1BEE79280038C00A /* bpg.framework */; };
-		D9B25F9E1BEE79280038C00A /* WebP.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D9B25F9C1BEE79280038C00A /* WebP.framework */; };
 		D9B260501BEE79370038C00A /* NSArray+YYAdd.m in Sources */ = {isa = PBXBuildFile; fileRef = D9B25FA31BEE79370038C00A /* NSArray+YYAdd.m */; };
 		D9B260511BEE79370038C00A /* NSBundle+YYAdd.m in Sources */ = {isa = PBXBuildFile; fileRef = D9B25FA51BEE79370038C00A /* NSBundle+YYAdd.m */; };
 		D9B260521BEE79370038C00A /* NSData+YYAdd.m in Sources */ = {isa = PBXBuildFile; fileRef = D9B25FA71BEE79370038C00A /* NSData+YYAdd.m */; };
@@ -214,17 +207,6 @@
 		B61014C8274239350085E02D /* NSString+YYModel.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSString+YYModel.m"; sourceTree = "<group>"; };
 		B61014C9274239350085E02D /* NSObject+YYCodable.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSObject+YYCodable.h"; sourceTree = "<group>"; };
 		B61014CA274239350085E02D /* NSObject+YYModel.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSObject+YYModel.h"; sourceTree = "<group>"; };
-		B62F6403276C283100A3DFE8 /* FMDatabasePool.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = FMDatabasePool.h; path = ../../../../fmdb/src/fmdb/FMDatabasePool.h; sourceTree = "<group>"; };
-		B62F6404276C283100A3DFE8 /* FMDatabaseAdditions.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = FMDatabaseAdditions.m; path = ../../../../fmdb/src/fmdb/FMDatabaseAdditions.m; sourceTree = "<group>"; };
-		B62F6405276C283100A3DFE8 /* FMDatabase.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = FMDatabase.h; path = ../../../../fmdb/src/fmdb/FMDatabase.h; sourceTree = "<group>"; };
-		B62F6406276C283100A3DFE8 /* FMDatabasePool.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = FMDatabasePool.m; path = ../../../../fmdb/src/fmdb/FMDatabasePool.m; sourceTree = "<group>"; };
-		B62F6407276C283100A3DFE8 /* FMDB.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = FMDB.h; path = ../../../../fmdb/src/fmdb/FMDB.h; sourceTree = "<group>"; };
-		B62F6408276C283100A3DFE8 /* FMDatabaseAdditions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = FMDatabaseAdditions.h; path = ../../../../fmdb/src/fmdb/FMDatabaseAdditions.h; sourceTree = "<group>"; };
-		B62F6409276C283100A3DFE8 /* FMResultSet.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = FMResultSet.m; path = ../../../../fmdb/src/fmdb/FMResultSet.m; sourceTree = "<group>"; };
-		B62F640A276C283100A3DFE8 /* FMDatabaseQueue.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = FMDatabaseQueue.m; path = ../../../../fmdb/src/fmdb/FMDatabaseQueue.m; sourceTree = "<group>"; };
-		B62F640B276C283100A3DFE8 /* FMResultSet.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = FMResultSet.h; path = ../../../../fmdb/src/fmdb/FMResultSet.h; sourceTree = "<group>"; };
-		B62F640C276C283100A3DFE8 /* FMDatabaseQueue.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = FMDatabaseQueue.h; path = ../../../../fmdb/src/fmdb/FMDatabaseQueue.h; sourceTree = "<group>"; };
-		B62F640D276C283200A3DFE8 /* FMDatabase.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = FMDatabase.m; path = ../../../../fmdb/src/fmdb/FMDatabase.m; sourceTree = "<group>"; };
 		B657F702276898B600AC9B74 /* YYDatabase.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = YYDatabase.h; sourceTree = "<group>"; };
 		B657F703276898B600AC9B74 /* YYDatabase.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = YYDatabase.m; sourceTree = "<group>"; };
 		D9067DEF1B975D3900F346EB /* YYTextExampleHelper.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = YYTextExampleHelper.h; sourceTree = "<group>"; };
@@ -358,7 +340,6 @@
 		D9971BB31B85023300A7B424 /* EmoticonWeibo.bundle */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.plug-in"; path = EmoticonWeibo.bundle; sourceTree = "<group>"; };
 		D9971BB41B85023300A7B424 /* EmoticonQQ.bundle */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.plug-in"; path = EmoticonQQ.bundle; sourceTree = "<group>"; };
 		D9B25F9B1BEE79280038C00A /* bpg.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = bpg.framework; path = ../Vendor/bpg.framework; sourceTree = "<group>"; };
-		D9B25F9C1BEE79280038C00A /* WebP.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebP.framework; path = ../Vendor/WebP.framework; sourceTree = "<group>"; };
 		D9B25FA21BEE79370038C00A /* NSArray+YYAdd.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSArray+YYAdd.h"; sourceTree = "<group>"; };
 		D9B25FA31BEE79370038C00A /* NSArray+YYAdd.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSArray+YYAdd.m"; sourceTree = "<group>"; };
 		D9B25FA41BEE79370038C00A /* NSBundle+YYAdd.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSBundle+YYAdd.h"; sourceTree = "<group>"; };
@@ -545,8 +526,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D9B25F9E1BEE79280038C00A /* WebP.framework in Frameworks */,
-				D9B25F9D1BEE79280038C00A /* bpg.framework in Frameworks */,
 				D9700D9E1BC7D44B00F878A4 /* libsqlite3.tbd in Frameworks */,
 				D9700D9C1BC7D44500F878A4 /* libz.tbd in Frameworks */,
 				D974851619CAB38900F46DE1 /* UIKit.framework in Frameworks */,
@@ -583,24 +562,6 @@
 				B657F703276898B600AC9B74 /* YYDatabase.m */,
 			);
 			path = Model;
-			sourceTree = "<group>";
-		};
-		B62F63ED276B676F00A3DFE8 /* FMDB */ = {
-			isa = PBXGroup;
-			children = (
-				B62F6405276C283100A3DFE8 /* FMDatabase.h */,
-				B62F640D276C283200A3DFE8 /* FMDatabase.m */,
-				B62F6408276C283100A3DFE8 /* FMDatabaseAdditions.h */,
-				B62F6404276C283100A3DFE8 /* FMDatabaseAdditions.m */,
-				B62F6403276C283100A3DFE8 /* FMDatabasePool.h */,
-				B62F6406276C283100A3DFE8 /* FMDatabasePool.m */,
-				B62F640C276C283100A3DFE8 /* FMDatabaseQueue.h */,
-				B62F640A276C283100A3DFE8 /* FMDatabaseQueue.m */,
-				B62F6407276C283100A3DFE8 /* FMDB.h */,
-				B62F640B276C283100A3DFE8 /* FMResultSet.h */,
-				B62F6409276C283100A3DFE8 /* FMResultSet.m */,
-			);
-			path = FMDB;
 			sourceTree = "<group>";
 		};
 		D9067E041B98A39200F346EB /* Feed List */ = {
@@ -854,7 +815,6 @@
 		D97484D219CAAD2900F46DE1 /* YYKitDemo */ = {
 			isa = PBXGroup;
 			children = (
-				B62F63ED276B676F00A3DFE8 /* FMDB */,
 				D97484D719CAAD2900F46DE1 /* YYAppDelegate.h */,
 				D97484D819CAAD2900F46DE1 /* YYAppDelegate.m */,
 				D943B48B19EC2BC100A9481E /* YYRootViewController.h */,
@@ -885,7 +845,6 @@
 			isa = PBXGroup;
 			children = (
 				D9B25F9B1BEE79280038C00A /* bpg.framework */,
-				D9B25F9C1BEE79280038C00A /* WebP.framework */,
 				D9700D9D1BC7D44B00F878A4 /* libsqlite3.tbd */,
 				D9700D9B1BC7D44500F878A4 /* libz.tbd */,
 				D9B263B81BEF66010038C00A /* MobileCoreServices.framework */,
@@ -1308,13 +1267,11 @@
 				D9B260671BEE79370038C00A /* UIGestureRecognizer+YYAdd.m in Sources */,
 				D9B260681BEE79370038C00A /* UIImage+YYAdd.m in Sources */,
 				D9067DF11B975D3900F346EB /* YYTextExampleHelper.m in Sources */,
-				B62F640F276C283200A3DFE8 /* FMDatabasePool.m in Sources */,
 				D9971BB01B84D55A00A7B424 /* YYTextAttributeExample.m in Sources */,
 				D9B260A01BEE79370038C00A /* YYWeakProxy.m in Sources */,
 				D9B260951BEE79370038C00A /* YYAsyncLayer.m in Sources */,
 				D9B260691BEE79370038C00A /* UIScreen+YYAdd.m in Sources */,
 				D9B2608E1BEE79370038C00A /* YYTextAttribute.m in Sources */,
-				B62F6410276C283200A3DFE8 /* FMResultSet.m in Sources */,
 				D9700DA11BC9123300F878A4 /* T1StatusLayout.m in Sources */,
 				D9B2605A1BEE79370038C00A /* NSObject+YYAddForKVO.m in Sources */,
 				D9B260601BEE79370038C00A /* UIApplication+YYAdd.m in Sources */,
@@ -1349,9 +1306,7 @@
 				D9B260981BEE79370038C00A /* YYGestureRecognizer.m in Sources */,
 				D92FF8651BC7FF0E00FFEBF4 /* T1HomeTimelineItemsViewController.m in Sources */,
 				D9B2608D1BEE79370038C00A /* YYTextArchiver.m in Sources */,
-				B62F6412276C283200A3DFE8 /* FMDatabase.m in Sources */,
 				B61014CB274239350085E02D /* NSObject+Extension.m in Sources */,
-				B62F6411276C283200A3DFE8 /* FMDatabaseQueue.m in Sources */,
 				D9067DF71B9856FF00F346EB /* YYTextMarkdownExample.m in Sources */,
 				D9B2608C1BEE79370038C00A /* UIPasteboard+YYText.m in Sources */,
 				D9387D4A1C7CBD7F00717477 /* YYKeychainExample.m in Sources */,
@@ -1387,7 +1342,6 @@
 				B61014CC274239350085E02D /* YYClassInfo.m in Sources */,
 				D9B260991BEE79370038C00A /* YYKeychain.m in Sources */,
 				B61014CD274239350085E02D /* NSString+YYModel.m in Sources */,
-				B62F640E276C283200A3DFE8 /* FMDatabaseAdditions.m in Sources */,
 				D9B2609D1BEE79370038C00A /* YYThreadSafeDictionary.m in Sources */,
 				D9B2609B1BEE79370038C00A /* YYSentinel.m in Sources */,
 				D9B2607E1BEE79370038C00A /* YYWebImageOperation.m in Sources */,
